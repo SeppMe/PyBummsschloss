@@ -1,5 +1,5 @@
 """Scene implementations."""
 
-from ballerburg.scenes.base import Scene
+from bummsschloss.scenes.base import Scene
 
 __all__ = ["Scene"]

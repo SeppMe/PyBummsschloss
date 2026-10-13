@@ -10,7 +10,10 @@ from typing import Final
 
 # --- Window -----------------------------------------------------------------
 
-GAME_TITLE: Final = "Ballerburg"
+GAME_TITLE: Final = "Das quietschfidele Bummsschloss"
+
+#: Short form used where space is tight (window lists, file names, builds).
+GAME_SHORT_TITLE: Final = "Bummsschloss 2026"
 
 #: The fixed resolution the game is drawn at. The window may be any size; the
 #: rendered surface is scaled to fit while preserving this aspect ratio.

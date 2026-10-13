@@ -1,22 +1,22 @@
 # PyInstaller build recipe.
-#   python -m PyInstaller packaging/ballerburg.spec
-# Produces a self-contained dist/Ballerburg folder that needs no Python install.
+#   python -m PyInstaller packaging/bummsschloss.spec
+# Produces a self-contained dist/Bummsschloss2026 folder that needs no Python install.
 
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files
 
 project_root = Path(SPECPATH).parent
-entry_script = project_root / "src" / "ballerburg" / "__main__.py"
+entry_script = project_root / "src" / "bummsschloss" / "__main__.py"
 
-datas = collect_data_files("ballerburg", subdir="assets")
+datas = collect_data_files("bummsschloss", subdir="assets")
 
 a = Analysis(
     [str(entry_script)],
     pathex=[str(project_root / "src")],
     binaries=[],
     datas=datas,
-    hiddenimports=["ballerburg.scenes.demo"],
+    hiddenimports=["bummsschloss.scenes.demo"],
     hookspath=[],
     runtime_hooks=[],
     excludes=["tkinter", "unittest", "pydoc_data"],
@@ -29,7 +29,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="Ballerburg",
+    name="Bummsschloss2026",
     debug=False,
     strip=False,
     upx=False,
@@ -42,5 +42,5 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=False,
-    name="Ballerburg",
+    name="Bummsschloss2026",
 )

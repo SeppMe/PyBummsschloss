@@ -1,7 +1,7 @@
 """The scene framework.
 
 A *scene* is one self-contained screen of the game: the title menu, the match
-itself, the end-of-round summary, and so on. The :class:`~ballerburg.app.App`
+itself, the end-of-round summary, and so on. The :class:`~bummsschloss.app.App`
 owns a stack of scenes and drives the top one.
 
 Scenes implement three things:
@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import pygame
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    from ballerburg.app import App
+    from bummsschloss.app import App
 
 
 class Scene:

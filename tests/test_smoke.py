@@ -10,9 +10,9 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame  # noqa: E402
 import pytest  # noqa: E402
 
-from ballerburg import config  # noqa: E402
-from ballerburg.app import App  # noqa: E402
-from ballerburg.scenes.demo import GROUND_Y, Ball, DemoScene  # noqa: E402
+from bummsschloss import config  # noqa: E402
+from bummsschloss.app import App  # noqa: E402
+from bummsschloss.scenes.demo import GROUND_Y, Ball, DemoScene  # noqa: E402
 
 
 @pytest.fixture

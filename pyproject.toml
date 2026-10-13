@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ballerburg"
+name = "bummsschloss-2026"
 version = "0.1.0"
-description = "A turn-based 2D artillery game in the spirit of the classic Ballerburg."
+description = "Das quietschfidele Bummsschloss - a turn-based 2D artillery game."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -33,16 +33,16 @@ build = [
 ]
 
 [project.scripts]
-ballerburg = "ballerburg.__main__:main"
+bummsschloss = "bummsschloss.__main__:main"
 
 [project.gui-scripts]
-ballerburg-gui = "ballerburg.__main__:main"
+bummsschloss-gui = "bummsschloss.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ballerburg"]
+packages = ["src/bummsschloss"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "tests", "README.md", "pyproject.toml"]

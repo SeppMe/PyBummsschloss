@@ -1,7 +1,7 @@
 """Window management and the main loop.
 
 The game is rendered at a fixed *logical* resolution (see
-:data:`ballerburg.config.LOGICAL_SIZE`) and then scaled to fit the window. That
+:data:`bummsschloss.config.LOGICAL_SIZE`) and then scaled to fit the window. That
 keeps all gameplay code in one coordinate system no matter how the user resizes
 the window, and gives the picture the chunky look of the old demo games.
 """
@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pygame
 
-from ballerburg import config
-from ballerburg.scenes.base import Scene
+from bummsschloss import config
+from bummsschloss.scenes.base import Scene
 
 
 class App:

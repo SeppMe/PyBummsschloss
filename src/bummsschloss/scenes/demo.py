@@ -15,9 +15,10 @@ from dataclasses import dataclass, field
 
 import pygame
 
-from ballerburg import config
-from ballerburg.resources import load_font
-from ballerburg.scenes.base import Scene
+from bummsschloss import config
+from bummsschloss.i18n import gettext as _
+from bummsschloss.resources import load_font
+from bummsschloss.scenes.base import Scene
 
 GROUND_Y = config.LOGICAL_SIZE[1] - 80
 CANNON_POS = (90, GROUND_Y)
@@ -132,7 +133,7 @@ class DemoScene(Scene):
 
     def scatter(self) -> None:
         """Drop a handful of random balls, just to see many objects at once."""
-        for _ in range(12):
+        for _index in range(12):
             self.balls.append(
                 Ball(
                     x=random.uniform(100, config.LOGICAL_SIZE[0] - 100),
@@ -196,7 +197,9 @@ class DemoScene(Scene):
             pygame.draw.circle(surface, config.WHITE, (int(px), int(py)), 1)
 
     def _draw_hud(self, surface: pygame.Surface) -> None:
-        title = self.big_font.render("Ballerburg - engine demo", True, config.ACCENT)
+        title = self.big_font.render(
+            f"{config.GAME_TITLE} - {_('engine demo')}", True, config.ACCENT
+        )
         surface.blit(title, (20, 16))
 
         bar = pygame.Rect(20, 60, 180, 12)
@@ -205,24 +208,31 @@ class DemoScene(Scene):
         fill.width = int(fill.width * self.power)
         pygame.draw.rect(surface, config.ACCENT, fill)
         label = self.font.render(
-            f"power {self.power * 100:3.0f}%   balls {len(self.balls)}   "
-            f"{self.app.clock.get_fps():4.0f} fps",
+            f"{_('power')} {self.power * 100:3.0f}%   "
+            f"{_('balls')} {len(self.balls)}   "
+            f"{self.app.clock.get_fps():4.0f} {_('fps')}",
             True,
             config.WHITE,
         )
         surface.blit(label, (20, 80))
 
         if self.show_help:
-            lines = [
-                "mouse      aim",
-                "click/space fire",
-                "wheel      power",
-                "R          scatter balls",
-                "C          clear",
-                "F11        fullscreen",
-                "H          hide this help",
-                "Esc/Q      quit",
+            entries = [
+                (_("mouse"), _("aim")),
+                (_("click/space"), _("fire")),
+                (_("wheel"), _("power")),
+                ("R", _("scatter balls")),
+                ("C", _("clear")),
+                ("F11", _("fullscreen")),
+                ("H", _("hide this help")),
+                ("Esc/Q", _("quit")),
             ]
-            for i, line in enumerate(lines):
-                text = self.font.render(line, True, config.WHITE)
-                surface.blit(text, (surface.get_width() - 210, 20 + i * 22))
+            right = surface.get_width() - 20
+            desc_width = max(self.font.size(desc)[0] for _key, desc in entries)
+            desc_left = right - desc_width
+            for i, (key, description) in enumerate(entries):
+                y = 20 + i * 22
+                key_text = self.font.render(key, True, config.ACCENT)
+                desc_text = self.font.render(description, True, config.WHITE)
+                surface.blit(key_text, (desc_left - 16 - key_text.get_width(), y))
+                surface.blit(desc_text, (desc_left, y))

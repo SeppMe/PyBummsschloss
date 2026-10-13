@@ -1,6 +1,6 @@
 """Locating and loading bundled data files.
 
-Assets live in ``src/ballerburg/assets`` and are shipped inside the wheel as
+Assets live in ``src/bummsschloss/assets`` and are shipped inside the wheel as
 package data. ``asset_path`` also understands being frozen by PyInstaller.
 """
 
