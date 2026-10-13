@@ -16,9 +16,15 @@ def build_parser(default_language: str) -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "--scene",
-        default="demo",
-        choices=["demo"],
+        default="match",
+        choices=["match", "demo"],
         help=_("which scene to start in (default: %(default)s)"),
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help=_("seed for the random landscape, for reproducible matches"),
     )
     parser.add_argument(
         "--lang",
@@ -47,11 +53,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # Imported late so that --help/--version do not pay for initialising SDL.
     from bummsschloss.app import App
+    from bummsschloss.match import Match
     from bummsschloss.scenes.demo import DemoScene
+    from bummsschloss.scenes.match import MatchScene
 
-    scenes = {"demo": DemoScene}
     app = App()
-    app.run(scenes[args.scene](app))
+    if args.scene == "demo":
+        scene = DemoScene(app)
+    else:
+        scene = MatchScene(app, Match(seed=args.seed))
+    app.run(scene)
     return 0
 
 

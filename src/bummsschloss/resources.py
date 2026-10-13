@@ -37,3 +37,14 @@ def load_font(size: int, *parts: str) -> pygame.font.Font:
     """Load a bundled font, or pygame's default font when no name is given."""
     name = str(asset_path(*parts)) if parts else None
     return pygame.font.Font(name, size)
+
+
+def clear_cache() -> None:
+    """Drop all cached assets.
+
+    Surfaces and fonts belong to the pygame session that created them, so the
+    caches have to be emptied whenever pygame is initialised afresh - otherwise
+    a restarted game would draw with handles that are no longer valid.
+    """
+    load_image.cache_clear()
+    load_font.cache_clear()

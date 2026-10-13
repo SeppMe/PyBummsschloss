@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pygame
 
-from bummsschloss import config
+from bummsschloss import config, resources
 from bummsschloss.scenes.base import Scene
 
 
@@ -23,8 +23,11 @@ class App:
         self._scenes: list[Scene] = []
 
         pygame.init()
-        flags = pygame.RESIZABLE | (pygame.HIDDEN if headless else 0)
-        self.window = pygame.display.set_mode(config.WINDOW_SIZE, flags)
+        resources.clear_cache()
+        self._window_flags = pygame.RESIZABLE | (pygame.HIDDEN if headless else 0)
+        self._windowed_size = config.WINDOW_SIZE
+        self.fullscreen = False
+        self.window = pygame.display.set_mode(self._windowed_size, self._window_flags)
         pygame.display.set_caption(config.GAME_TITLE)
 
         #: Everything is drawn here, at a constant resolution.
@@ -93,6 +96,19 @@ class App:
 
     # -- main loop ----------------------------------------------------------
 
+    def toggle_fullscreen(self) -> None:
+        """Switch between windowed and fullscreen.
+
+        SDL may hand us a brand new window surface, so the cached reference has
+        to be refreshed - otherwise every later frame would be drawn into a
+        surface that is no longer on screen.
+        """
+        self.fullscreen = not self.fullscreen
+        if self.fullscreen:
+            self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        else:
+            self.window = pygame.display.set_mode(self._windowed_size, self._window_flags)
+
     def _process_events(self) -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -102,8 +118,11 @@ class App:
                 self.mouse_pos = self.to_logical(event.pos)
             elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
                 self.mouse_pos = self.to_logical(event.pos)
+            elif event.type == pygame.VIDEORESIZE and not self.fullscreen:
+                self._windowed_size = (event.w, event.h)
+                self.window = pygame.display.set_mode(self._windowed_size, self._window_flags)
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
-                pygame.display.toggle_fullscreen()
+                self.toggle_fullscreen()
                 continue
             if self.scene is not None:
                 self.scene.handle_event(event)

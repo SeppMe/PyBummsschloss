@@ -16,12 +16,68 @@ src/bummsschloss/         # the game package (src-layout)
     app.py                # window creation + main loop
     config.py             # tunable constants
     i18n.py               # translation catalogues and the _() helper
+    match.py              # the rules engine (no pygame)
+    weapons.py            # the arsenal
+    stats.py              # per-player statistics and the awards
     resources.py          # asset lookup / loading
+    world/                # terrain, castles, projectiles (no pygame)
     scenes/               # one module per screen/state of the game
     assets/               # bundled data files (images, levels, fonts)
 tests/                    # pytest suite (runs headless)
 packaging/                # PyInstaller recipe
 ```
+
+The rules engine (`match.py`, `world/`, `weapons.py`, `stats.py`) never imports
+pygame. Everything the players see lives in `scenes/`. That split keeps the
+simulation testable headless today, and makes it reusable as the authoritative
+side of a network game later.
+
+## How the game works
+
+Two castles sit in a randomly generated, horizontally **wrapping** landscape.
+Players take turns (hotseat) lobbing shells at each other.
+
+**Terrain** is a heightmap: one surface height per pixel column. When a shell
+digs material out of the middle of a column, everything above it drops by the
+same amount, so craters collapse rather than leaving floating ceilings.
+
+**Castles** are statically placed and do not move sideways, but they rest on
+the ground under their footprint. Blow that ground away and the castle topples,
+taking damage proportional to the drop. A single surviving pillar is enough to
+hold it up.
+
+**Wind** is rerolled every turn and acts as a sideways acceleration. How much a
+shot cares about it is the weapon's `wdabhkt`
+(*Windabhängigkeitskoeffizient*): an iron ball barely notices the breeze,
+a balloon bomb is at its mercy. Each weapon also scales gravity separately, so
+mortars plummet while balloons drift.
+
+**The playfield wraps.** A shot leaving the right edge comes back in on the
+left. Leaving the top or bottom of the screen is not an escape either - the
+trajectory keeps being simulated out of sight, with an on-screen marker showing
+where the shot currently is. A flight-time limit stops a freak orbit from
+stalling the game.
+
+**Economy**: each player receives a lump sum at the start of their own turn and
+spends it on shells. There is no base building.
+
+**After the match** a summary screen compares both players and hands out awards
+for greatest total damage, best single shot, damage per shot, most castles
+destroyed, best hit rate, and a few less flattering distinctions.
+
+### Controls
+
+| Input | Action |
+| --- | --- |
+| Mouse | Aim |
+| Click / Space | Fire |
+| Left / Right | Fine-tune the angle |
+| Up / Down, wheel | Power |
+| 1-6, Tab | Choose a weapon |
+| N | New landscape |
+| H | Help |
+| F11 | Fullscreen |
+| Esc / Q | Quit |
 
 ## Development setup
 
@@ -42,7 +98,8 @@ python -m bummsschloss
 | Task | Command |
 | --- | --- |
 | Run the game | `python -m bummsschloss` |
-| Run the ball demo | `python -m bummsschloss --scene demo` |
+| Run a reproducible match | `python -m bummsschloss --seed 1234` |
+| Run the old engine demo | `python -m bummsschloss --scene demo` |
 | Run in English | `python -m bummsschloss --lang en` |
 | Run tests | `python -m pytest` |
 | Lint | `python -m ruff check .` |

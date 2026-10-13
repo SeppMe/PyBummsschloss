@@ -42,8 +42,8 @@ BLACK: Final[Color] = (0, 0, 0)
 WHITE: Final[Color] = (255, 255, 255)
 SKY: Final[Color] = (24, 32, 64)
 SKY_LOW: Final[Color] = (84, 60, 96)
-GROUND: Final[Color] = (46, 92, 54)
-GROUND_DARK: Final[Color] = (28, 58, 36)
+GROUND: Final[Color] = (86, 150, 70)
+GROUND_DARK: Final[Color] = (104, 72, 46)
 STONE: Final[Color] = (150, 150, 160)
 ACCENT: Final[Color] = (240, 196, 64)
 RED: Final[Color] = (220, 72, 64)
@@ -54,3 +54,56 @@ GREY: Final[Color] = (120, 120, 130)
 
 #: Downward acceleration in logical pixels per second squared.
 GRAVITY: Final = 420.0
+
+# --- Match rules ------------------------------------------------------------
+
+#: Money every player starts the match with.
+STARTING_MONEY: Final = 600
+
+#: Lump sum each player is handed at the start of their own turn.
+TURN_INCOME: Final = 250
+
+#: Wind is an acceleration in px/s^2, redrawn every turn from this range.
+WIND_MAX: Final = 160.0
+
+#: A shot is given up on after this many simulated seconds, so a freak orbit
+#: around the wrapping world can never stall the game.
+MAX_FLIGHT_TIME: Final = 22.0
+
+#: How many past positions of a shot are kept for its trail.
+TRAIL_LENGTH: Final = 90
+
+#: Seconds the explosion flash stays on screen.
+EXPLOSION_LIFETIME: Final = 0.45
+
+#: Pause after a turn resolves before the next player takes over.
+TURN_HANDOVER_DELAY: Final = 0.9
+
+# --- Castles ----------------------------------------------------------------
+
+CASTLE_WIDTH: Final = 86.0
+CASTLE_HEIGHT: Final = 64.0
+CASTLE_MAX_HP: Final = 100.0
+
+#: The cannon sits this far above the castle roof.
+CASTLE_MUZZLE_OFFSET: Final = 14.0
+
+#: A drop shorter than this does no damage at all.
+CASTLE_SAFE_FALL: Final = 6.0
+
+#: Hit points lost per pixel of (unsafe) fall height.
+CASTLE_FALL_DAMAGE: Final = 0.55
+
+#: Horizontal positions of the two castles, as a fraction of the world width.
+CASTLE_SPOTS: Final = (0.14, 0.86)
+
+#: Player colours, one per seat.
+PLAYER_COLORS: Final[tuple[Color, ...]] = ((220, 72, 64), (72, 140, 220))
+
+# --- Aiming -----------------------------------------------------------------
+
+MIN_POWER: Final = 0.05
+MAX_POWER: Final = 1.0
+POWER_STEP: Final = 0.02
+ANGLE_STEP: Final = 0.5  # degrees per key press
+

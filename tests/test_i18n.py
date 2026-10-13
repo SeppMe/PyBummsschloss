@@ -50,3 +50,37 @@ def test_every_catalogue_key_exists_in_every_language():
         assert language in i18n.CATALOGUES
     missing = keys - set(i18n.CATALOGUES["de"])
     assert not missing, f"untranslated in German: {sorted(missing)}"
+
+
+def test_all_award_strings_are_translated():
+    """Award titles, descriptions and their unit suffixes must be German."""
+    import re
+
+    from bummsschloss.stats import AWARDS
+
+    german = i18n.CATALOGUES["de"]
+    missing = []
+    for award in AWARDS:
+        for text in (award.title, award.description, award.fmt):
+            words = re.sub(r"\{[^}]*\}", "", text)
+            if not any(char.isalpha() for char in words):
+                continue  # a bare number format carries no words to translate
+            if text not in german:
+                missing.append(text)
+    assert not missing, f"untranslated award strings: {missing}"
+
+
+def test_all_weapon_names_are_translated():
+    from bummsschloss.weapons import ARSENAL, HIDDEN_WEAPONS
+
+    german = i18n.CATALOGUES["de"]
+    missing = [w.name for w in ARSENAL + HIDDEN_WEAPONS if w.name not in german]
+    assert not missing, f"untranslated weapons: {missing}"
+
+
+def test_all_summary_table_labels_are_translated():
+    from bummsschloss.scenes.summary import STAT_ROWS
+
+    german = i18n.CATALOGUES["de"]
+    missing = [label for label, _template, _better in STAT_ROWS if label not in german]
+    assert not missing, f"untranslated table labels: {missing}"
