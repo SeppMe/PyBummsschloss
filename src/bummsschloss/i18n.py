@@ -206,7 +206,7 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "lost the connection to the broker":
             "Verbindung zum Vermittler verloren",
         "Your move.": "Du bist dran.",
-        "Waiting for {player}...": "Warte auf {player}...",
+        "Waiting for {player}...": "Warten auf {player}...",
         "resynced {count}x": "{count}x neu abgeglichen",
         # -- colours ------------------------------------------------------
         "red": "Rot",
