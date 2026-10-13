@@ -57,6 +57,13 @@ def test_the_terrain_raising_weapon_is_gone():
     assert not any(weapon.key == "molehill" for weapon in ARSENAL)
 
 
+def test_everybody_starts_with_the_cannonball_loaded(match):
+    """The dud is cheaper, but nobody wants to open a match with it."""
+    assert all(player.weapon.key == "cannonball" for player in match.players)
+    # The free dud still sits in its old slot; only the default moved.
+    assert ARSENAL[0].key == "dud"
+
+
 # -- the free dud ------------------------------------------------------------
 
 

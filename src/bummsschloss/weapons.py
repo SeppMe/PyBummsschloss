@@ -211,6 +211,19 @@ HIDDEN_WEAPONS: tuple[Weapon, ...] = (
 
 BY_KEY: dict[str, Weapon] = {w.key: w for w in ARSENAL + HIDDEN_WEAPONS}
 
+#: The weapon a player starts a match with. The dud sits in slot 1 because it
+#: is free, but the cannonball is what everybody actually reaches for first.
+DEFAULT_WEAPON_KEY = "cannonball"
+
+
+def index_of(key: str) -> int:
+    """Position of a selectable weapon in the arsenal."""
+    return next(i for i, weapon in enumerate(ARSENAL) if weapon.key == key)
+
+
+#: Index of :data:`DEFAULT_WEAPON_KEY`, so the order can change freely.
+DEFAULT_WEAPON_INDEX = index_of(DEFAULT_WEAPON_KEY)
+
 
 def by_key(key: str) -> Weapon:
     """Look a weapon up by its stable identifier."""

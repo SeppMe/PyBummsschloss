@@ -27,7 +27,7 @@ from random import Random
 from bummsschloss import config
 from bummsschloss.matchsetup import MatchSetup
 from bummsschloss.stats import MatchSummary, PlayerStats, award_winners
-from bummsschloss.weapons import ARSENAL, Weapon, by_key
+from bummsschloss.weapons import ARSENAL, DEFAULT_WEAPON_INDEX, Weapon, by_key
 from bummsschloss.world.castle import Castle, wrap_delta
 from bummsschloss.world.projectile import Projectile
 from bummsschloss.world.terrain import Terrain
@@ -48,7 +48,7 @@ class Player:
     name: str
     color_index: int = 0
     money: int = config.STARTING_MONEY
-    weapon_index: int = 0
+    weapon_index: int = DEFAULT_WEAPON_INDEX
     #: Barrel angle in degrees; 0 is due east, negative points upwards.
     angle: float = -45.0
     power: float = 0.65
