@@ -24,7 +24,10 @@ src/bummsschloss/         # the game package (src-layout)
     world/                # terrain, castles, projectiles (no pygame)
     net/                  # lockstep network play over a message broker
     scenes/               # one module per screen/state of the game
-    assets/               # bundled data files (images, levels, fonts)
+    assets/               # bundled data files
+        images/           # sprites and backgrounds
+        sounds/           # sound effects
+        fonts/            # bundled typefaces
 tests/                    # pytest suite (runs headless)
 tools/                    # small diagnostics (e.g. finding a working broker)
 packaging/                # PyInstaller recipe
@@ -202,7 +205,6 @@ python -m bummsschloss
 | Skip the menu | `python -m bummsschloss --scene match` |
 | Preselect four players | `python -m bummsschloss --players 4` |
 | Run a reproducible match | `python -m bummsschloss --seed 1234` |
-| Run the old engine demo | `python -m bummsschloss --scene demo` |
 | Run in English | `python -m bummsschloss --lang en` |
 | Run tests | `python -m pytest` |
 | Lint | `python -m ruff check .` |

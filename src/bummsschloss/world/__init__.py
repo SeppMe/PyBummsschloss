@@ -1,7 +1,7 @@
 """The world model: terrain, castles and projectiles.
 
 Nothing in this package imports pygame, so the whole simulation can run
-headless - in tests today and on a dedicated server once network play arrives.
+headless - in the tests, and on every client of a network game.
 """
 
 from bummsschloss.world.castle import Castle

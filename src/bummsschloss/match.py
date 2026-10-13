@@ -42,7 +42,12 @@ class Phase(Enum):
 
 @dataclass
 class Player:
-    """One seat at the table. For now every seat is local (hotseat)."""
+    """One seat at the table.
+
+    A seat says nothing about who is sitting in it: in a hotseat game the
+    players share one keyboard, in a network game each seat is driven by the
+    orders that arrive for it.
+    """
 
     index: int
     name: str

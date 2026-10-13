@@ -17,7 +17,7 @@ def build_parser(default_language: str) -> argparse.ArgumentParser:
     parser.add_argument(
         "--scene",
         default="setup",
-        choices=["setup", "match", "demo"],
+        choices=["setup", "match"],
         help=_("which scene to start in (default: %(default)s)"),
     )
     parser.add_argument(
@@ -68,15 +68,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     from bummsschloss.app import App
     from bummsschloss.match import Match
     from bummsschloss.matchsetup import MatchSetup
-    from bummsschloss.scenes.demo import DemoScene
     from bummsschloss.scenes.match import MatchScene
     from bummsschloss.scenes.setup import SetupScene
 
     setup = MatchSetup.default(args.players, seed=args.seed)
     app = App()
-    if args.scene == "demo":
-        scene = DemoScene(app)
-    elif args.scene == "match":
+    if args.scene == "match":
+        # Straight into a hotseat match, skipping the menu.
         scene = MatchScene(app, Match(setup=setup, seed=args.seed))
     else:
         scene = SetupScene(app, setup)

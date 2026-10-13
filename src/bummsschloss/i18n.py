@@ -24,18 +24,13 @@ AVAILABLE_LANGUAGES: tuple[str, ...] = ("de", "en")
 CATALOGUES: dict[str, dict[str, str]] = {
     "en": {},
     "de": {
-        # -- window / branding ------------------------------------------
-        # The game title itself is a proper name and stays untranslated.
-        "engine demo": "Engine-Demo",
         # -- HUD --------------------------------------------------------
+        # The game title itself is a proper name and stays untranslated.
         "power": "Kraft",
-        "balls": "Kugeln",
-        "fps": "Bilder/s",
         "angle": "Winkel",
         "wind": "Wind",
         "turn": "Runde",
         "money": "Taler",
-        "armour": "Panzerung",
         "damage": "Schaden",
         "shots": "Schüsse",
         "Player 1": "Spieler 1",
@@ -43,7 +38,6 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "Player 3": "Spieler 3",
         "Player 4": "Spieler 4",
         "defeated": "besiegt",
-        "H for help": "H für Hilfe",
         "Not enough money for this weapon.": "Nicht genug Taler für diese Waffe.",
         # -- weapons ----------------------------------------------------
         "Dud": "Blindgänger",
@@ -220,7 +214,6 @@ CATALOGUES: dict[str, dict[str, str]] = {
         # -- controls ---------------------------------------------------
         "mouse": "Maus",
         "click/space": "Klick/Leer",
-        "wheel": "Mausrad",
         "left/right": "Links/Rechts",
         "up/down, wheel": "Hoch/Runter, Mausrad",
         "aim": "zielen",
@@ -228,8 +221,6 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "fine-tune angle": "Winkel feinjustieren",
         "choose weapon": "Waffe wählen",
         "back to the menu": "zurück zum Menü",
-        "scatter balls": "Kugeln streuen",
-        "clear": "leeren",
         "fullscreen": "Vollbild",
         "hide this help": "Hilfe ausblenden",
         "quit": "beenden",

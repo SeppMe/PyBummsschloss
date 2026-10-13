@@ -52,6 +52,30 @@ def test_every_catalogue_key_exists_in_every_language():
     assert not missing, f"untranslated in German: {sorted(missing)}"
 
 
+def test_the_catalogue_has_no_orphans():
+    """Every German entry must still correspond to a string in the source.
+
+    Translations outlive the code they were written for: a scene gets deleted,
+    a label gets reworded, and the entry quietly stays behind. This keeps the
+    catalogue honest.
+    """
+    import pathlib
+    import re
+
+    import bummsschloss
+
+    source_root = pathlib.Path(bummsschloss.__file__).parent
+    files = [p for p in source_root.rglob("*.py") if p.name != "i18n.py"]
+    text = "\n".join(p.read_text(encoding="utf-8") for p in files)
+    # A key counts as used only as a whole literal, never as part of a longer
+    # one - otherwise "wheel" would look alive inside "up/down, wheel".
+    literals = set(re.findall(r'"((?:[^"\\]|\\.)*)"', text))
+    literals |= set(re.findall(r"'((?:[^'\\]|\\.)*)'", text))
+
+    orphans = [key for key in i18n.CATALOGUES["de"] if key not in literals]
+    assert not orphans, f"catalogue entries nothing uses any more: {sorted(orphans)}"
+
+
 def test_all_award_strings_are_translated():
     """Award titles, descriptions and their unit suffixes must be German."""
     import re

@@ -2,8 +2,8 @@
 
 :class:`MatchSetup` is the hand-over point between the pre-match menu and the
 rules engine: the menu edits one of these, :class:`~bummsschloss.match.Match`
-consumes it. It deliberately knows nothing about pygame, so the same object can
-later be sent over the wire to set up a network game.
+consumes it. It deliberately knows nothing about pygame, which also lets it
+travel over the wire when a network game is being set up.
 """
 
 from __future__ import annotations

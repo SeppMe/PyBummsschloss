@@ -12,7 +12,9 @@ import pytest  # noqa: E402
 
 from bummsschloss import config  # noqa: E402
 from bummsschloss.app import App  # noqa: E402
-from bummsschloss.scenes.demo import GROUND_Y, Ball, DemoScene  # noqa: E402
+from bummsschloss.match import Match  # noqa: E402
+from bummsschloss.matchsetup import MatchSetup  # noqa: E402
+from bummsschloss.scenes.match import MatchScene  # noqa: E402
 
 
 @pytest.fixture
@@ -22,39 +24,26 @@ def app():
     pygame.quit()
 
 
-def test_ball_falls_and_settles():
-    ball = Ball(x=100.0, y=100.0, vx=0.0, vy=0.0, radius=5, color=config.WHITE)
-    for _ in range(2000):
-        ball.update(config.FIXED_DT)
-        if not ball.alive:
-            break
-    assert not ball.alive, "ball should come to rest eventually"
-    assert ball.y + ball.radius == pytest.approx(GROUND_Y, abs=1.0)
-
-
-def test_ball_stays_inside_playfield():
-    ball = Ball(x=10.0, y=50.0, vx=-900.0, vy=0.0, radius=6, color=config.WHITE)
-    for _ in range(600):
-        ball.update(config.FIXED_DT)
-        assert 0 <= ball.x <= config.LOGICAL_SIZE[0]
+def a_match(app) -> MatchScene:
+    """A real match on the stack - the cheapest scene that exercises everything."""
+    scene = MatchScene(app, Match(setup=MatchSetup.default(2), seed=7))
+    app.push_scene(scene)
+    app.running = True
+    return scene
 
 
 def test_app_runs_frames_and_draws(app):
-    scene = DemoScene(app)
-    app.push_scene(scene)
-    app.running = True
-    for _ in range(10):
+    a_match(app)
+    for _step in range(10):
         app.step(1 / 60)
     assert app.running
     assert app.screen.get_size() == config.LOGICAL_SIZE
 
 
-def test_firing_adds_a_ball(app):
-    scene = DemoScene(app)
-    app.push_scene(scene)
-    before = len(scene.balls)
-    scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
-    assert len(scene.balls) == before + 1
+def test_a_shot_leaves_the_barrel(app):
+    scene = a_match(app)
+    scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE, mod=0, unicode=""))
+    assert scene.match.projectiles, "space should fire the cannon"
 
 
 def test_logical_coordinate_mapping(app):
@@ -65,8 +54,7 @@ def test_logical_coordinate_mapping(app):
 
 
 def test_quit_event_stops_the_loop(app):
-    app.push_scene(DemoScene(app))
-    app.running = True
+    a_match(app)
     pygame.event.post(pygame.event.Event(pygame.QUIT))
     app.step(1 / 60)
     assert not app.running
