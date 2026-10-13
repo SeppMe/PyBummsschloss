@@ -183,7 +183,6 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "fire": "feuern",
         "fine-tune angle": "Winkel feinjustieren",
         "choose weapon": "Waffe wählen",
-        "new landscape": "neue Landschaft",
         "back to the menu": "zurück zum Menü",
         "scatter balls": "Kugeln streuen",
         "clear": "leeren",

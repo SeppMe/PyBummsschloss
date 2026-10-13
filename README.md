@@ -60,8 +60,11 @@ already taken. The three economies are:
 ### Playing
 
 Two to four castles sit in a randomly generated, horizontally **wrapping**
-landscape, spread evenly around it. Players take turns (hotseat) lobbing shells
-at each other; a destroyed castle is skipped, and the last one standing wins.
+landscape of one to three big flowing hills. Each castle gets its own slot
+around the world, but where exactly it stands inside that slot - and which
+seat gets which slot - is drawn afresh every match, so nobody owns the left
+side. Players take turns (hotseat) lobbing shells at each other; a destroyed
+castle is skipped, and the last one standing wins.
 
 **Terrain** is a heightmap: one surface height per pixel column. When a shell
 digs material out of the middle of a column, everything above it drops by the
@@ -121,7 +124,6 @@ destroyed, best hit rate, and a few less flattering distinctions.
 | Up / Down, wheel | Power |
 | 1-9, Tab | Choose a weapon |
 | W | Show the arsenal |
-| N | New landscape |
 | M | Back to the setup menu |
 | H | Help |
 | F11 | Fullscreen |

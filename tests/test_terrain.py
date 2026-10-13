@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from random import Random
 
-from bummsschloss.world.terrain import Terrain
+from bummsschloss.world.terrain import MAX_PEAKS, Terrain
 
 
 def flat(width: int = 200, height: int = 300, level: float = 150.0) -> Terrain:
@@ -22,6 +22,50 @@ def test_generated_terrain_stays_within_bounds():
     terrain = Terrain.generate(400, 300, Random(1))
     for height in terrain.heights():
         assert 0 <= height <= 300
+
+
+def test_the_landscape_flows_instead_of_rippling():
+    """No frilly saw teeth: neighbouring columns stay close together."""
+    for seed in range(12):
+        heights = Terrain.generate(960, 540, Random(seed)).heights()
+        steepest = max(
+            abs(heights[(x + 1) % 960] - heights[x]) for x in range(960)
+        )
+        assert steepest < 6.0, f"seed {seed} is too jagged: {steepest:.1f} px per column"
+
+
+def test_the_landscape_has_a_handful_of_big_hills():
+    """One to three major peaks, not a field of waves."""
+    reach = 70
+    for seed in range(12):
+        heights = Terrain.generate(960, 540, Random(seed)).heights()
+        peaks = sum(
+            1
+            for x in range(960)
+            if all(heights[x] <= heights[(x + d) % 960] for d in range(-reach, reach + 1))
+        )
+        assert 1 <= peaks <= MAX_PEAKS, f"seed {seed} has {peaks} peaks"
+
+
+def test_the_landscape_is_not_flat():
+    heights = Terrain.generate(960, 540, Random(3)).heights()
+    assert max(heights) - min(heights) > 540 * 0.4
+
+
+def test_an_apron_eases_a_plateau_into_the_hillside():
+    terrain = Terrain(200, 300, [100.0 + x for x in range(200)])
+    terrain.flatten(90, 110, 150.0, blend=20)
+
+    assert terrain.height_at(100) == 150.0
+    # Just outside the plateau the ground leans towards the new level, and
+    # further out it is back to the untouched slope.
+    assert 150.0 < terrain.height_at(115) < 215.0
+    assert terrain.height_at(150) == 250.0
+
+
+def test_the_average_surface_sits_between_the_extremes():
+    terrain = Terrain(100, 300, [100.0] * 50 + [200.0] * 50)
+    assert terrain.average_surface(40, 59) == 150.0
 
 
 def test_columns_wrap_in_both_directions():

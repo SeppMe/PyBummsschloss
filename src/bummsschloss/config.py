@@ -6,6 +6,7 @@ stays free of magic numbers.
 
 from __future__ import annotations
 
+from random import Random
 from typing import Final
 
 # --- Window -----------------------------------------------------------------
@@ -86,12 +87,12 @@ TURN_HANDOVER_DELAY: Final = 0.9
 
 # --- Castles ----------------------------------------------------------------
 
-CASTLE_WIDTH: Final = 86.0
-CASTLE_HEIGHT: Final = 64.0
+CASTLE_WIDTH: Final = 52.0
+CASTLE_HEIGHT: Final = 38.0
 CASTLE_MAX_HP: Final = 100.0
 
 #: The cannon sits this far above the castle roof.
-CASTLE_MUZZLE_OFFSET: Final = 14.0
+CASTLE_MUZZLE_OFFSET: Final = 9.0
 
 #: A drop shorter than this does no damage at all.
 CASTLE_SAFE_FALL: Final = 6.0
@@ -99,11 +100,35 @@ CASTLE_SAFE_FALL: Final = 6.0
 #: Hit points lost per pixel of (unsafe) fall height.
 CASTLE_FALL_DAMAGE: Final = 0.55
 
+#: How far a castle may wander from the middle of its slot, as a fraction of
+#: the slot width. Keeping it below 0.5 guarantees the castles never swap
+#: places or crowd each other, however the dice fall.
+CASTLE_SPOT_JITTER: Final = 0.34
+
+#: Columns of eased ground on either side of a castle's plateau, so that a
+#: castle on a slope sits on a shoulder instead of a sheer pillar.
+CASTLE_APRON: Final = 55
+
+
 #: Castle positions are spread evenly around the wrapping world, so that every
-#: seat has the same distance to both of its neighbours.
-def castle_spots(count: int) -> tuple[float, ...]:
-    """Return the castle positions for ``count`` players, as fractions of the width."""
-    return tuple((index + 0.5) / count for index in range(count))
+#: seat has roughly the same distance to both of its neighbours.
+def castle_spots(count: int, rng: Random | None = None) -> tuple[float, ...]:
+    """Return the castle positions for ``count`` players, as fractions of the width.
+
+    Without an ``rng`` the slots are dead even. With one, the whole ring is
+    rotated by a random amount and every castle is nudged within its own slot,
+    so no two landscapes put the castles in quite the same place.
+    """
+    slot = 1.0 / count
+    if rng is None:
+        return tuple((index + 0.5) * slot for index in range(count))
+
+    offset = rng.random()
+    reach = slot * CASTLE_SPOT_JITTER
+    return tuple(
+        ((index + 0.5) * slot + offset + rng.uniform(-reach, reach)) % 1.0
+        for index in range(count)
+    )
 
 
 #: How many seats a match can have.

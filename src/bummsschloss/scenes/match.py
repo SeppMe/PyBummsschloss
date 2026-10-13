@@ -66,8 +66,6 @@ class MatchScene(Scene):
                 self.show_help = not self.show_help
             elif event.key == pygame.K_w:
                 self.show_arsenal = not self.show_arsenal
-            elif event.key == pygame.K_n:
-                match_.reset(seed=None)
             elif event.key == pygame.K_m:
                 self._back_to_menu()
             elif pygame.K_1 <= event.key <= pygame.K_9:
@@ -115,6 +113,12 @@ class MatchScene(Scene):
         surface.blit(self._terrain_surface(), (0, 0))
         for castle in self.match.castles:
             self._draw_castle(surface, castle)
+            # The world wraps, so a castle near the seam has to be drawn on
+            # both edges or half of it would simply be missing.
+            if castle.left < 0:
+                self._draw_castle(surface, castle, self.match.width)
+            elif castle.right > self.match.width:
+                self._draw_castle(surface, castle, -self.match.width)
         if self.match.phase is Phase.AIM:
             self._draw_aim(surface)
         self._draw_projectiles(surface)
@@ -155,41 +159,57 @@ class MatchScene(Scene):
         self._terrain_version = terrain.version
         return surface
 
-    def _draw_castle(self, surface: pygame.Surface, castle) -> None:
+    def _draw_castle(self, surface: pygame.Surface, castle, dx: float = 0.0) -> None:
         color = self.match.players[castle.owner].color
-        left, top = int(castle.left), int(castle.top_y)
+        left, top = int(castle.left + dx), int(castle.top_y)
+        centre_x = int(castle.centre_x + dx)
         width, height = int(castle.width), int(castle.height)
 
         if not castle.alive:
-            rubble = pygame.Rect(left, int(castle.bottom_y) - 12, width, 12)
+            rubble_height = max(6, int(height * 0.3))
+            rubble = pygame.Rect(left, int(castle.bottom_y) - rubble_height, width, rubble_height)
             pygame.draw.rect(surface, config.GREY, rubble)
             return
 
-        body = pygame.Rect(left, top + 16, width, height - 16)
+        # Everything below is proportional to the castle, so that resizing it
+        # in the config keeps the silhouette intact.
+        cap = max(6, int(height * 0.28))
+        body = pygame.Rect(left, top + cap, width, height - cap)
         pygame.draw.rect(surface, config.STONE, body)
         pygame.draw.rect(surface, config.GREY, body, 2)
 
         # Battlements along the top edge.
-        for i in range(0, width, 16):
-            pygame.draw.rect(surface, config.STONE, (left + i, top + 6, 10, 12))
-            pygame.draw.rect(surface, config.GREY, (left + i, top + 6, 10, 12), 1)
+        step = max(6, width // 5)
+        merlon = pygame.Rect(0, 0, max(4, int(step * 0.62)), cap)
+        for i in range(0, width - merlon.width + 1, step):
+            merlon.topleft = (left + i, top + cap // 3)
+            pygame.draw.rect(surface, config.STONE, merlon)
+            pygame.draw.rect(surface, config.GREY, merlon, 1)
 
         # Central tower with the owner's banner.
-        tower = pygame.Rect(0, 0, 22, 30)
-        tower.midbottom = (int(castle.centre_x), top + 18)
+        tower = pygame.Rect(0, 0, max(10, int(width * 0.26)), max(12, int(height * 0.48)))
+        tower.midbottom = (centre_x, top + cap + 2)
         pygame.draw.rect(surface, config.STONE, tower)
         pygame.draw.rect(surface, config.GREY, tower, 2)
-        pole_x, pole_y = int(castle.centre_x), tower.top - 14
+        flag = max(10, int(width * 0.21))
+        pole_x, pole_y = centre_x, tower.top - flag
         pygame.draw.line(surface, config.GREY, (pole_x, tower.top), (pole_x, pole_y), 2)
         pygame.draw.polygon(
-            surface, color, [(pole_x, pole_y), (pole_x + 18, pole_y + 5), (pole_x, pole_y + 10)]
+            surface,
+            color,
+            [
+                (pole_x, pole_y),
+                (pole_x + flag, pole_y + flag * 0.3),
+                (pole_x, pole_y + flag * 0.6),
+            ],
         )
 
-        self._draw_health_bar(surface, castle, color)
+        self._draw_health_bar(surface, castle, color, dx)
 
-    def _draw_health_bar(self, surface: pygame.Surface, castle, color) -> None:
+    def _draw_health_bar(self, surface: pygame.Surface, castle, color, dx: float = 0.0) -> None:
         bar = pygame.Rect(0, 0, int(castle.width), 5)
-        bar.midbottom = (int(castle.centre_x), int(castle.top_y) - 34)
+        gap = int(castle.height * 0.3) + 20
+        bar.midbottom = (int(castle.centre_x + dx), int(castle.top_y) - gap)
         if bar.top < HUD_HEIGHT + 4:
             # A castle on a high hill would otherwise hang its bar behind the
             # HUD, where the player's panel already shows the same number.
@@ -203,21 +223,33 @@ class MatchScene(Scene):
     def _draw_aim(self, surface: pygame.Surface) -> None:
         match_ = self.match
         player = match_.player
-        muzzle_x, muzzle_y = match_.castle.muzzle
+        castle = match_.castle
+        offsets = [0.0]
+        if castle.left < 0:
+            offsets.append(float(match_.width))
+        elif castle.right > match_.width:
+            offsets.append(-float(match_.width))
+        for dx in offsets:
+            self._draw_barrel(surface, player, castle, dx)
+
+    def _draw_barrel(self, surface: pygame.Surface, player, castle, dx: float) -> None:
+        muzzle_x, muzzle_y = castle.muzzle
+        muzzle_x += dx
         angle = math.radians(player.angle)
         color = player.color
 
-        # The barrel itself.
-        tip = (muzzle_x + math.cos(angle) * 34, muzzle_y + math.sin(angle) * 34)
-        pygame.draw.line(surface, config.GREY, (muzzle_x, muzzle_y), tip, 6)
-        pygame.draw.circle(surface, config.STONE, (int(muzzle_x), int(muzzle_y)), 7)
+        # The barrel itself, sized against the castle it sticks out of.
+        barrel = castle.width * 0.42
+        tip = (muzzle_x + math.cos(angle) * barrel, muzzle_y + math.sin(angle) * barrel)
+        pygame.draw.line(surface, config.GREY, (muzzle_x, muzzle_y), tip, 5)
+        pygame.draw.circle(surface, config.STONE, (int(muzzle_x), int(muzzle_y)), 6)
 
         # A short sighting guide - direction and power only, never the solution.
         length = 30 + 90 * player.power
         for i in range(1, 9):
             t = i / 8
-            px = muzzle_x + math.cos(angle) * (34 + length * t)
-            py = muzzle_y + math.sin(angle) * (34 + length * t)
+            px = muzzle_x + math.cos(angle) * (barrel + length * t)
+            py = muzzle_y + math.sin(angle) * (barrel + length * t)
             pygame.draw.circle(surface, color, (int(px) % surface.get_width(), int(py)), 2)
 
     def _draw_projectiles(self, surface: pygame.Surface) -> None:
@@ -496,7 +528,6 @@ class MatchScene(Scene):
             (_("up/down, wheel"), _("power")),
             ("1-9, Tab", _("choose weapon")),
             ("W", _("show the arsenal")),
-            ("N", _("new landscape")),
             ("M", _("back to the menu")),
             ("H", _("hide this help")),
             ("F11", _("fullscreen")),

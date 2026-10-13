@@ -71,6 +71,6 @@ def test_contains_and_distance_respect_wrapping():
     width = 400
     castle = Castle(owner=0, centre_x=10.0, bottom_y=200.0)
     # A point just left of x=0 is right next to a castle near the left edge.
-    assert castle.contains(width - 5, 160.0, width)
-    assert castle.distance_to(width - 5, 160.0, width) == 0.0
+    assert castle.contains(width - 5, 180.0, width)
+    assert castle.distance_to(width - 5, 180.0, width) == 0.0
     assert wrap_delta(-width + 5, width) == 5

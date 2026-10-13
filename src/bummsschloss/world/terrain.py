@@ -15,6 +15,11 @@ import math
 from collections.abc import Iterable, Sequence
 from random import Random
 
+#: How many major hills a landscape may have. One makes for a single great
+#: mountain with the players on its flanks, three for a proper range.
+MIN_PEAKS = 1
+MAX_PEAKS = 3
+
 
 class Terrain:
     """A horizontally wrapping heightmap of solid ground."""
@@ -37,27 +42,37 @@ class Terrain:
         height: int,
         rng: Random,
         *,
-        min_height: float = 0.30,
-        max_height: float = 0.80,
-        octaves: int = 5,
+        min_height: float = 0.32,
+        max_height: float = 0.92,
     ) -> Terrain:
-        """Create a random hilly landscape that tiles seamlessly.
+        """Create a random landscape of a few big hills that tiles seamlessly.
+
+        The shape is built from a handful of sine waves. One of them carries
+        almost all of the relief: it decides whether the map has one great
+        mountain or three, and everything else is a small modulation on top,
+        so the result flows rather than ripples.
 
         Only whole-number frequencies are used, so the left and right edges
         always match up and shots can fly across the seam unnoticed.
         """
-        waves = []
-        for octave in range(octaves):
-            frequency = 2**octave
-            amplitude = 1.0 / (octave + 1.4)
-            waves.append((frequency, amplitude, rng.uniform(0.0, math.tau)))
+        peaks = rng.randint(MIN_PEAKS, MAX_PEAKS)
+        waves = [
+            # The main ridge, and the long swell that makes one side of the
+            # map grander than the other.
+            (peaks, 1.0),
+            (1, 0.45 if peaks > 1 else 0.25),
+            # Shoulders and foothills, just enough to break the symmetry.
+            (peaks * 2, 0.16),
+            (peaks * 3 + 1, 0.07),
+        ]
 
         raw = []
+        phases = [rng.uniform(0.0, math.tau) for _ in waves]
         for x in range(width):
             t = x / width
             value = sum(
                 amplitude * math.sin(math.tau * frequency * t + phase)
-                for frequency, amplitude, phase in waves
+                for (frequency, amplitude), phase in zip(waves, phases, strict=True)
             )
             raw.append(value)
 
@@ -94,14 +109,34 @@ class Terrain:
         """Highest ground surface (smallest y) across a range of columns."""
         return min(self._heights[self.column(x)] for x in range(x0, x1 + 1))
 
+    def average_surface(self, x0: int, x1: int) -> float:
+        """Mean ground surface across a range of columns.
+
+        Seating a castle at the average cuts the high side down and fills the
+        low side in, instead of raising the whole span onto a pillar.
+        """
+        columns = range(x0, x1 + 1)
+        return sum(self._heights[self.column(x)] for x in columns) / len(columns)
+
     # -- modification -------------------------------------------------------
 
-    def flatten(self, x0: int, x1: int, level: float | None = None) -> float:
-        """Level the ground between two columns, e.g. to seat a castle."""
+    def flatten(self, x0: int, x1: int, level: float | None = None, blend: int = 0) -> float:
+        """Level the ground between two columns, e.g. to seat a castle.
+
+        ``blend`` adds an apron of that many columns on either side, easing
+        from the new level back into the untouched landscape so that a castle
+        on a hillside gets a shoulder rather than a cliff.
+        """
         if level is None:
             level = self.surface_between(x0, x1)
         for x in range(x0, x1 + 1):
             self._heights[self.column(x)] = level
+        for offset in range(1, blend + 1):
+            t = offset / (blend + 1)
+            weight = t * t * (3.0 - 2.0 * t)
+            for x in (x0 - offset, x1 + offset):
+                index = self.column(x)
+                self._heights[index] = level * (1.0 - weight) + self._heights[index] * weight
         self.version += 1
         return level
 

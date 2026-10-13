@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from random import Random
+
 import pytest
 
 from bummsschloss import config
@@ -9,8 +11,8 @@ from bummsschloss.match import Match, Phase
 from bummsschloss.matchsetup import IncomeModel, MatchSetup
 
 
-def build(count: int, **kwargs) -> Match:
-    return Match(setup=MatchSetup.default(count, **kwargs), seed=4242)
+def build(count: int, seed: int = 4242, **kwargs) -> Match:
+    return Match(setup=MatchSetup.default(count, **kwargs), seed=seed)
 
 
 def run_until_aim(match: Match, limit: int = 20000) -> bool:
@@ -38,10 +40,44 @@ def test_every_player_gets_a_castle_on_solid_ground(count):
 
 @pytest.mark.parametrize("count", range(config.MIN_PLAYERS, config.MAX_PLAYERS + 1))
 def test_castles_do_not_overlap_each_other(count):
-    match = build(count)
-    centres = sorted(castle.centre_x for castle in match.castles)
-    for left, right in zip(centres, centres[1:], strict=False):
-        assert right - left > config.CASTLE_WIDTH
+    """However the dice fall, nobody ends up in their neighbour's moat."""
+    for seed in range(20):
+        match = build(count, seed=seed)
+        centres = sorted(castle.centre_x for castle in match.castles)
+        gaps = [right - left for left, right in zip(centres, centres[1:], strict=False)]
+        # The world wraps, so the outermost two are neighbours as well.
+        gaps.append(match.width - centres[-1] + centres[0])
+        assert min(gaps) > config.CASTLE_WIDTH * 1.5, f"seed {seed}, count {count}"
+
+
+def test_the_castles_move_around_from_match_to_match():
+    places = {
+        tuple(round(castle.centre_x) for castle in build(3, seed=seed).castles)
+        for seed in range(12)
+    }
+    assert len(places) > 8, "the landscape changes but the castles always stand still"
+
+
+def test_the_seating_order_is_shuffled_too():
+    """Player one must not always be the one on the left."""
+    leftmost = {
+        min(build(4, seed=seed).castles, key=lambda c: c.centre_x).owner
+        for seed in range(25)
+    }
+    assert len(leftmost) > 1
+
+
+def test_even_spots_are_still_available_without_an_rng():
+    assert config.castle_spots(2) == (0.25, 0.75)
+    assert config.castle_spots(4) == (0.125, 0.375, 0.625, 0.875)
+
+
+def test_jittered_spots_stay_inside_their_own_slot():
+    rng = Random(5)
+    for _attempt in range(50):
+        spots = config.castle_spots(4, rng)
+        assert len(set(spots)) == 4
+        assert all(0.0 <= spot < 1.0 for spot in spots)
 
 
 def test_seat_names_and_colours_come_from_the_setup():

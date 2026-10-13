@@ -136,11 +136,20 @@ class Match:
             for index, seat in enumerate(self.setup.players)
         ]
         self.castles = []
-        for index, spot in enumerate(config.castle_spots(len(self.players))):
+        spots = list(config.castle_spots(len(self.players), self.rng))
+        # Which seat gets which spot is drawn as well, so player one is not
+        # always the one on the left.
+        self.rng.shuffle(spots)
+        for index, spot in enumerate(spots):
             centre = self.width * spot
             left = int(centre - config.CASTLE_WIDTH / 2) - 4
             right = int(centre + config.CASTLE_WIDTH / 2) + 4
-            level = self.terrain.flatten(left, right)
+            level = self.terrain.flatten(
+                left,
+                right,
+                self.terrain.average_surface(left, right),
+                blend=config.CASTLE_APRON,
+            )
             self.castles.append(Castle(owner=index, centre_x=centre, bottom_y=level))
 
         self.projectiles.clear()
