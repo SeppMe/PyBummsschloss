@@ -19,6 +19,10 @@ from bummsschloss.weapons import ARSENAL
 
 HUD_HEIGHT = 92
 
+#: Width of one player card in the HUD, and the margin to the screen edge.
+PANEL_WIDTH = 158
+PANEL_MARGIN = 16
+
 
 class MatchScene(Scene):
     """Draws the match and feeds hotseat input into the rules engine."""
@@ -48,6 +52,8 @@ class MatchScene(Scene):
                 self.show_help = not self.show_help
             elif event.key == pygame.K_n:
                 match_.reset(seed=None)
+            elif event.key == pygame.K_m:
+                self._back_to_menu()
             elif pygame.K_1 <= event.key <= pygame.K_9:
                 match_.select_weapon(event.key - pygame.K_1)
             elif event.key == pygame.K_TAB:
@@ -80,6 +86,11 @@ class MatchScene(Scene):
             from bummsschloss.scenes.summary import SummaryScene
 
             self.app.replace_scene(SummaryScene(self.app, self.match))
+
+    def _back_to_menu(self) -> None:
+        from bummsschloss.scenes.setup import SetupScene
+
+        self.app.replace_scene(SetupScene(self.app, self.match.setup))
 
     # -- drawing ------------------------------------------------------------
 
@@ -127,7 +138,7 @@ class MatchScene(Scene):
         return surface
 
     def _draw_castle(self, surface: pygame.Surface, castle) -> None:
-        color = config.PLAYER_COLORS[castle.owner % len(config.PLAYER_COLORS)]
+        color = self.match.players[castle.owner].color
         left, top = int(castle.left), int(castle.top_y)
         width, height = int(castle.width), int(castle.height)
 
@@ -161,6 +172,10 @@ class MatchScene(Scene):
     def _draw_health_bar(self, surface: pygame.Surface, castle, color) -> None:
         bar = pygame.Rect(0, 0, int(castle.width), 5)
         bar.midbottom = (int(castle.centre_x), int(castle.top_y) - 34)
+        if bar.top < HUD_HEIGHT + 4:
+            # A castle on a high hill would otherwise hang its bar behind the
+            # HUD, where the player's panel already shows the same number.
+            return
         pygame.draw.rect(surface, config.BLACK, bar)
         fill = bar.inflate(-2, -2)
         fill.width = max(0, int(fill.width * castle.hp / castle.max_hp))
@@ -172,7 +187,7 @@ class MatchScene(Scene):
         player = match_.player
         muzzle_x, muzzle_y = match_.castle.muzzle
         angle = math.radians(player.angle)
-        color = config.PLAYER_COLORS[player.index % len(config.PLAYER_COLORS)]
+        color = player.color
 
         # The barrel itself.
         tip = (muzzle_x + math.cos(angle) * 34, muzzle_y + math.sin(angle) * 34)
@@ -190,7 +205,7 @@ class MatchScene(Scene):
     def _draw_projectiles(self, surface: pygame.Surface) -> None:
         width = surface.get_width()
         for projectile in self.match.projectiles:
-            color = config.PLAYER_COLORS[projectile.owner % len(config.PLAYER_COLORS)]
+            color = self.match.players[projectile.owner].color
             for i, (tx, ty) in enumerate(projectile.trail):
                 if ty < 0:
                     continue
@@ -232,7 +247,7 @@ class MatchScene(Scene):
 
         match_ = self.match
         for player in match_.players:
-            self._draw_player_panel(surface, player)
+            self._draw_player_panel(surface, player, self._panel_x(player.index))
         self._draw_wind(surface)
         self._draw_weapon_bar(surface)
 
@@ -241,43 +256,61 @@ class MatchScene(Scene):
             surface.blit(text, (width // 2 - text.get_width() // 2, HUD_HEIGHT + 8))
 
         hint = self.small_font.render(_("H for help"), True, config.GREY)
-        surface.blit(hint, (width - hint.get_width() - 8, HUD_HEIGHT - 18))
+        surface.blit(hint, (width - hint.get_width() - 8, HUD_HEIGHT - 16))
 
-    def _draw_player_panel(self, surface: pygame.Surface, player) -> None:
-        active = player.index == self.match.current_player
-        color = config.PLAYER_COLORS[player.index % len(config.PLAYER_COLORS)]
-        right_aligned = player.index == 1
-        x = surface.get_width() - 18 if right_aligned else 18
+    def _panel_x(self, seat: int) -> int:
+        """Place the seats in two blocks, leaving the middle free for the wind."""
+        total = len(self.match.players)
+        left_count = (total + 1) // 2
+        if seat < left_count:
+            return PANEL_MARGIN + seat * PANEL_WIDTH
+        right_slot = seat - left_count
+        right_count = total - left_count
+        block_start = config.LOGICAL_SIZE[0] - PANEL_MARGIN - right_count * PANEL_WIDTH
+        return block_start + right_slot * PANEL_WIDTH
 
-        def blit(text: pygame.Surface, y: int) -> None:
-            surface.blit(text, (x - text.get_width() if right_aligned else x, y))
-
-        name = f"{_(player.name)}"
-        if active:
-            name = f"> {name}" if not right_aligned else f"{name} <"
-        blit(self.font.render(name, True, color if active else config.GREY), 10)
-
+    def _draw_player_panel(self, surface: pygame.Surface, player, x: int) -> None:
         castle = self.match.castle_of(player.index)
-        blit(
-            self.small_font.render(
-                f"{_('armour')} {castle.hp:.0f}/{castle.max_hp:.0f}", True, config.WHITE
-            ),
-            30,
-        )
-        blit(
-            self.small_font.render(f"{_('money')} {player.money}", True, config.ACCENT),
-            46,
-        )
+        active = player.index == self.match.current_player and castle.alive
+        color = player.color
+
+        if active:
+            frame = pygame.Rect(x - 6, 4, PANEL_WIDTH - 8, HUD_HEIGHT - 12)
+            pygame.draw.rect(surface, color, frame, 1)
+
+        name = _(player.name)
+        if not castle.alive:
+            name = f"{name} - {_('defeated')}"
+        name_color = color if castle.alive else config.GREY
+        surface.blit(self.font.render(name, True, name_color), (x, 8))
+
+        self._draw_hud_health(surface, x, 28, castle, color)
+
+        money = self.small_font.render(f"{player.money}", True, config.ACCENT)
+        label = self.small_font.render(_("money"), True, config.GREY)
+        surface.blit(label, (x, 44))
+        surface.blit(money, (x + label.get_width() + 6, 44))
+
         stats = player.stats
-        blit(
-            self.small_font.render(
-                f"{_('damage')} {stats.damage_dealt:.0f}   "
-                f"{_('shots')} {stats.shots_fired}",
-                True,
-                config.GREY,
-            ),
-            62,
+        detail = self.small_font.render(
+            f"{_('damage')} {stats.damage_dealt:.0f}   {_('shots')} {stats.shots_fired}",
+            True,
+            config.GREY,
         )
+        surface.blit(detail, (x, 62))
+
+    def _draw_hud_health(
+        self, surface: pygame.Surface, x: int, y: int, castle, color
+    ) -> None:
+        bar = pygame.Rect(x, y + 2, 84, 9)
+        pygame.draw.rect(surface, config.BLACK, bar)
+        if castle.alive:
+            fill = bar.inflate(-2, -2)
+            fill.width = max(0, int(fill.width * castle.hp / castle.max_hp))
+            pygame.draw.rect(surface, color, fill)
+        pygame.draw.rect(surface, config.GREY, bar, 1)
+        value = self.small_font.render(f"{max(0.0, castle.hp):.0f}", True, config.WHITE)
+        surface.blit(value, (x + bar.width + 8, y))
 
     def _draw_wind(self, surface: pygame.Surface) -> None:
         centre_x = surface.get_width() // 2
@@ -345,6 +378,7 @@ class MatchScene(Scene):
             (_("up/down, wheel"), _("power")),
             ("1-6, Tab", _("choose weapon")),
             ("N", _("new landscape")),
+            ("M", _("back to the menu")),
             ("H", _("hide this help")),
             ("F11", _("fullscreen")),
             ("Esc/Q", _("quit")),

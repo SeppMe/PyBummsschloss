@@ -84,3 +84,32 @@ def test_all_summary_table_labels_are_translated():
     german = i18n.CATALOGUES["de"]
     missing = [label for label, _template, _better in STAT_ROWS if label not in german]
     assert not missing, f"untranslated table labels: {missing}"
+
+
+def test_all_income_models_are_translated():
+    from bummsschloss.matchsetup import IncomeModel
+
+    german = i18n.CATALOGUES["de"]
+    missing = [
+        text
+        for model in IncomeModel
+        for text in (model.label, model.description)
+        if text not in german
+    ]
+    assert not missing, f"untranslated economy strings: {missing}"
+
+
+def test_all_palette_colour_names_are_translated():
+    from bummsschloss import config
+
+    german = i18n.CATALOGUES["de"]
+    missing = [name for name, _rgb in config.PLAYER_PALETTE if name not in german]
+    assert not missing, f"untranslated colours: {missing}"
+
+
+def test_all_default_seat_names_are_translated():
+    from bummsschloss.matchsetup import DEFAULT_NAMES
+
+    german = i18n.CATALOGUES["de"]
+    missing = [name for name in DEFAULT_NAMES if name not in german]
+    assert not missing, f"untranslated seat names: {missing}"

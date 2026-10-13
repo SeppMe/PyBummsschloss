@@ -17,6 +17,7 @@ src/bummsschloss/         # the game package (src-layout)
     config.py             # tunable constants
     i18n.py               # translation catalogues and the _() helper
     match.py              # the rules engine (no pygame)
+    matchsetup.py         # the pre-match choices (no pygame)
     weapons.py            # the arsenal
     stats.py              # per-player statistics and the awards
     resources.py          # asset lookup / loading
@@ -27,15 +28,40 @@ tests/                    # pytest suite (runs headless)
 packaging/                # PyInstaller recipe
 ```
 
-The rules engine (`match.py`, `world/`, `weapons.py`, `stats.py`) never imports
-pygame. Everything the players see lives in `scenes/`. That split keeps the
-simulation testable headless today, and makes it reusable as the authoritative
-side of a network game later.
+The rules engine (`match.py`, `matchsetup.py`, `world/`, `weapons.py`,
+`stats.py`) never imports pygame. Everything the players see lives in
+`scenes/`. That split keeps the simulation testable headless today, and makes
+it reusable as the authoritative side of a network game later.
 
 ## How the game works
 
-Two castles sit in a randomly generated, horizontally **wrapping** landscape.
-Players take turns (hotseat) lobbing shells at each other.
+### Setting up a match
+
+The game opens on a setup menu. Arrow keys (or the mouse) pick a row and change
+its value, Enter starts the match:
+
+| Setting | Choices |
+| --- | --- |
+| Players | 2 to 4, each with their own castle |
+| Seat | Type to rename, arrows pick one of six colours |
+| Starting money | What everybody begins with |
+| Income per turn | The base lump sum |
+| Economy | How that lump sum is worked out (see below) |
+
+Two seats never share a colour; stepping through the palette skips whatever is
+already taken. The three economies are:
+
+- **flat** - everybody gets the same amount every turn.
+- **rising** - the income grows each round, so the expensive weapons eventually
+  become affordable and matches do not drag on.
+- **catch-up** - the more battered your castle, the more you are paid, which
+  keeps a losing player in the game.
+
+### Playing
+
+Two to four castles sit in a randomly generated, horizontally **wrapping**
+landscape, spread evenly around it. Players take turns (hotseat) lobbing shells
+at each other; a destroyed castle is skipped, and the last one standing wins.
 
 **Terrain** is a heightmap: one surface height per pixel column. When a shell
 digs material out of the middle of a column, everything above it drops by the
@@ -59,9 +85,10 @@ where the shot currently is. A flight-time limit stops a freak orbit from
 stalling the game.
 
 **Economy**: each player receives a lump sum at the start of their own turn and
-spends it on shells. There is no base building.
+spends it on shells. There is no base building; how the sum is worked out is
+chosen in the setup menu.
 
-**After the match** a summary screen compares both players and hands out awards
+**After the match** a summary screen compares every player and hands out awards
 for greatest total damage, best single shot, damage per shot, most castles
 destroyed, best hit rate, and a few less flattering distinctions.
 
@@ -75,6 +102,7 @@ destroyed, best hit rate, and a few less flattering distinctions.
 | Up / Down, wheel | Power |
 | 1-6, Tab | Choose a weapon |
 | N | New landscape |
+| M | Back to the setup menu |
 | H | Help |
 | F11 | Fullscreen |
 | Esc / Q | Quit |
@@ -98,6 +126,8 @@ python -m bummsschloss
 | Task | Command |
 | --- | --- |
 | Run the game | `python -m bummsschloss` |
+| Skip the menu | `python -m bummsschloss --scene match` |
+| Preselect four players | `python -m bummsschloss --players 4` |
 | Run a reproducible match | `python -m bummsschloss --seed 1234` |
 | Run the old engine demo | `python -m bummsschloss --scene demo` |
 | Run in English | `python -m bummsschloss --lang en` |

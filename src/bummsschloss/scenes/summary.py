@@ -31,6 +31,13 @@ STAT_ROWS: tuple[tuple[str, str, str | None], ...] = (
     ("earth moved", "{0.terrain_moved:.0f}", None),
 )
 
+#: Table geometry: labels end at ``LABEL_RIGHT``, player columns fill the rest
+#: of the left half, and the awards panel starts at ``AWARDS_LEFT``.
+LABEL_RIGHT = 250
+TABLE_LEFT = 268
+TABLE_RIGHT = 604
+AWARDS_LEFT = 628
+
 
 class SummaryScene(Scene):
     """Shows the final score sheet and waits for a rematch or a quit."""
@@ -53,6 +60,10 @@ class SummaryScene(Scene):
             return
         if event.key in (pygame.K_ESCAPE, pygame.K_q):
             self.app.quit()
+        elif event.key == pygame.K_m:
+            from bummsschloss.scenes.setup import SetupScene
+
+            self.app.replace_scene(SetupScene(self.app, self.match.setup))
         elif event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_n):
             from bummsschloss.scenes.match import MatchScene
 
@@ -68,7 +79,9 @@ class SummaryScene(Scene):
         self._draw_awards(surface)
 
         prompt = self.font.render(
-            _("Enter for a rematch   -   Esc to quit"), True, config.GREY
+            _("Enter for a rematch   -   M for the menu   -   Esc to quit"),
+            True,
+            config.GREY,
         )
         surface.blit(
             prompt,
@@ -76,7 +89,13 @@ class SummaryScene(Scene):
         )
 
     def _player_color(self, index: int):
-        return config.PLAYER_COLORS[index % len(config.PLAYER_COLORS)]
+        return config.player_color(self.summary.color_index(index))
+
+    def _columns(self) -> list[int]:
+        """Left edge of each player's column, sized to fit the table area."""
+        count = max(1, len(self.summary.player_names))
+        spacing = min(96, (TABLE_RIGHT - TABLE_LEFT) // count)
+        return [TABLE_LEFT + index * spacing for index in range(count)]
 
     def _draw_title(self, surface: pygame.Surface) -> None:
         summary = self.summary
@@ -99,15 +118,15 @@ class SummaryScene(Scene):
     def _draw_table(self, surface: pygame.Surface) -> None:
         summary = self.summary
         top = 96
-        label_right = 300
-        columns = (360, 520)
+        label_right = LABEL_RIGHT
+        columns = self._columns()
 
         for index, name in enumerate(summary.player_names):
-            header = self.font.render(_(name), True, self._player_color(index))
+            header = self.small_font.render(
+                self._shorten(_(name)), True, self._player_color(index)
+            )
             surface.blit(header, (columns[index], top))
-        pygame.draw.line(
-            surface, config.GREY, (40, top + 20), (columns[-1] + 120, top + 20), 1
-        )
+        pygame.draw.line(surface, config.GREY, (40, top + 20), (TABLE_RIGHT, top + 20), 1)
 
         for row, (label, template, better) in enumerate(STAT_ROWS):
             y = top + 28 + row * 19
@@ -119,8 +138,12 @@ class SummaryScene(Scene):
                 color = config.ACCENT if index == best else config.WHITE
                 surface.blit(self.small_font.render(value, True, color), (columns[index], y))
 
+    def _shorten(self, name: str) -> str:
+        """Keep long names from running into the next column."""
+        return name if len(name) <= 10 else f"{name[:9]}."
+
     def _best_index(self, template: str, better: str | None) -> int | None:
-        """Highlight the better of the two numbers in a row, if there is one."""
+        """Highlight the best number in a row, if exactly one player holds it."""
         if better is None:
             return None
         values = [self._numeric(template, entry) for entry in self.summary.stats]
@@ -140,7 +163,7 @@ class SummaryScene(Scene):
             return None
 
     def _draw_awards(self, surface: pygame.Surface) -> None:
-        x = 620
+        x = AWARDS_LEFT
         y = 96
         heading = self.font.render(_("Awards"), True, config.ACCENT)
         surface.blit(heading, (x, y))

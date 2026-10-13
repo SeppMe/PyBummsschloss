@@ -40,6 +40,9 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "shots": "Schüsse",
         "Player 1": "Spieler 1",
         "Player 2": "Spieler 2",
+        "Player 3": "Spieler 3",
+        "Player 4": "Spieler 4",
+        "defeated": "besiegt",
         "H for help": "H für Hilfe",
         "Not enough money for this weapon.": "Nicht genug Taler für diese Waffe.",
         # -- weapons ----------------------------------------------------
@@ -57,6 +60,7 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "The cluster barrel bursts open!": "Das Streufass platzt auf!",
         "The shot was lost in the clouds.": "Der Schuss verlor sich in den Wolken.",
         "The shot vanished into the abyss.": "Der Schuss verschwand im Abgrund.",
+        "A castle falls to rubble!": "Eine Burg sinkt in Schutt und Asche!",
         "Victory!": "Sieg!",
         "Everyone lost.": "Alle haben verloren.",
         # -- summary screen ---------------------------------------------
@@ -64,8 +68,8 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "{turns} turns": "{turns} Runden",
         "Awards": "Auszeichnungen",
         "Nobody distinguished themselves.": "Niemand hat sich hervorgetan.",
-        "Enter for a rematch   -   Esc to quit":
-            "Eingabe für Revanche   -   Esc zum Beenden",
+        "Enter for a rematch   -   M for the menu   -   Esc to quit":
+            "Eingabe für Revanche   -   M für das Menü   -   Esc zum Beenden",
         "shots fired": "Schüsse",
         "hits": "Treffer",
         "hit rate": "Trefferquote",
@@ -104,6 +108,38 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "{:.0f} shovelfuls": "{:.0f} Schaufeln",
         "{:.0f} shots": "{:.0f} Schüsse",
         "{:.0f} coins per point": "{:.0f} Taler je Punkt",
+        # -- setup menu --------------------------------------------------
+        "Set up the match": "Partie einrichten",
+        "players": "Spieler",
+        "seat {number}": "Platz {number}",
+        "starting money": "Startkapital",
+        "income per turn": "Einkommen pro Zug",
+        "economy": "Wirtschaft",
+        "Start the match": "Partie starten",
+        "(unnamed)": "(namenlos)",
+        "type to rename, arrows for colour":
+            "tippen zum Umbenennen, Pfeile für die Farbe",
+        "Everything ready? Then let the cannons speak.":
+            "Alles bereit? Dann sollen die Kanonen sprechen.",
+        "arrow keys to choose   -   Enter to start   -   Esc to quit":
+            "Pfeiltasten zum Wählen   -   Eingabe zum Starten   -   Esc zum Beenden",
+        "flat": "fest",
+        "rising": "steigend",
+        "catch-up": "Aufholjagd",
+        "Everybody gets the same amount every turn.":
+            "Jeder erhält in jedem Zug denselben Betrag.",
+        "The income grows with every round, so later weapons get affordable.":
+            "Das Einkommen wächst mit jeder Runde, "
+            "so werden teure Waffen später erschwinglich.",
+        "The worse your castle looks, the more you are paid.":
+            "Je übler die eigene Burg aussieht, desto mehr Taler gibt es.",
+        # -- colours ------------------------------------------------------
+        "red": "Rot",
+        "blue": "Blau",
+        "green": "Grün",
+        "yellow": "Gelb",
+        "purple": "Violett",
+        "orange": "Orange",
         # -- controls ---------------------------------------------------
         "mouse": "Maus",
         "click/space": "Klick/Leer",
@@ -115,6 +151,7 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "fine-tune angle": "Winkel feinjustieren",
         "choose weapon": "Waffe wählen",
         "new landscape": "neue Landschaft",
+        "back to the menu": "zurück zum Menü",
         "scatter balls": "Kugeln streuen",
         "clear": "leeren",
         "fullscreen": "Vollbild",
@@ -125,6 +162,8 @@ CATALOGUES: dict[str, dict[str, str]] = {
             "Szene, in der gestartet wird (Standard: %(default)s)",
         "seed for the random landscape, for reproducible matches":
             "Startwert für die Zufallslandschaft, für wiederholbare Partien",
+        "number of players to preselect in the menu (default: %(default)s)":
+            "Zahl der im Menü vorgewählten Spieler (Standard: %(default)s)",
         "language of the user interface (default: %(default)s)":
             "Sprache der Benutzeroberfläche (Standard: %(default)s)",
     },

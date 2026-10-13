@@ -196,8 +196,16 @@ class MatchSummary:
     winner: int | None
     turns: int
     player_names: list[str] = field(default_factory=list)
+    #: Palette index each player chose, so the summary can use their colour.
+    color_indices: list[int] = field(default_factory=list)
     stats: list[PlayerStats] = field(default_factory=list)
     awards: list[AwardResult] = field(default_factory=list)
 
     def awards_for(self, player_index: int) -> list[AwardResult]:
         return [r for r in self.awards if r.player_index == player_index]
+
+    def color_index(self, player_index: int) -> int:
+        """Palette index of a player, falling back to their seat number."""
+        if player_index < len(self.color_indices):
+            return self.color_indices[player_index]
+        return player_index

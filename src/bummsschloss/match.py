@@ -24,6 +24,7 @@ from enum import Enum, auto
 from random import Random
 
 from bummsschloss import config
+from bummsschloss.matchsetup import MatchSetup
 from bummsschloss.stats import MatchSummary, PlayerStats, award_winners
 from bummsschloss.weapons import ARSENAL, Weapon, by_key
 from bummsschloss.world.castle import Castle, wrap_delta
@@ -40,10 +41,11 @@ class Phase(Enum):
 
 @dataclass
 class Player:
-    """One seat at the table. For now both seats are local (hotseat)."""
+    """One seat at the table. For now every seat is local (hotseat)."""
 
     index: int
     name: str
+    color_index: int = 0
     money: int = config.STARTING_MONEY
     weapon_index: int = 0
     #: Barrel angle in degrees; 0 is due east, negative points upwards.
@@ -54,6 +56,10 @@ class Player:
     @property
     def weapon(self) -> Weapon:
         return ARSENAL[self.weapon_index % len(ARSENAL)]
+
+    @property
+    def color(self) -> config.Color:
+        return config.player_color(self.color_index)
 
     def can_afford(self, weapon: Weapon) -> bool:
         return self.money >= weapon.cost
@@ -79,11 +85,13 @@ class Explosion:
 
 @dataclass
 class Match:
-    """A single hotseat game between two castles."""
+    """A single hotseat game between two or more castles."""
 
     width: int = config.LOGICAL_SIZE[0]
     height: int = config.LOGICAL_SIZE[1]
     seed: int | None = None
+    #: The choices made in the pre-match menu. Defaults to a two-player game.
+    setup: MatchSetup = field(default_factory=MatchSetup)
 
     terrain: Terrain = field(init=False)
     castles: list[Castle] = field(init=False, default_factory=list)
@@ -108,24 +116,27 @@ class Match:
     _shot_any_damage: float = field(init=False, default=0.0)
 
     def __post_init__(self) -> None:
+        if self.seed is None:
+            self.seed = self.setup.seed
         self.rng = Random(self.seed)
         self.reset()
 
     # -- setup --------------------------------------------------------------
 
     def reset(self, seed: int | None = None) -> None:
-        """Generate a fresh landscape and put both castles back on their feet."""
+        """Generate a fresh landscape and put every castle back on its feet."""
         if seed is not None:
             self.seed = seed
         self.rng = Random(self.seed)
 
         self.terrain = Terrain.generate(self.width, self.height, self.rng)
         self.players = [
-            Player(index=0, name="Player 1"),
-            Player(index=1, name="Player 2"),
+            Player(index=index, name=self.setup.display_name(index), color_index=seat.color_index,
+                   money=self.setup.starting_money)
+            for index, seat in enumerate(self.setup.players)
         ]
         self.castles = []
-        for index, spot in enumerate(config.CASTLE_SPOTS):
+        for index, spot in enumerate(config.castle_spots(len(self.players))):
             centre = self.width * spot
             left = int(centre - config.CASTLE_WIDTH / 2) - 4
             right = int(centre + config.CASTLE_WIDTH / 2) + 4
@@ -145,7 +156,7 @@ class Match:
         self._shot_enemy_damage = 0.0
         self._shot_any_damage = 0.0
         self.roll_wind()
-        self.players[0].money += config.TURN_INCOME
+        self._grant_income(self.players[0])
 
     def roll_wind(self) -> None:
         """Pick a new wind for the turn."""
@@ -165,7 +176,21 @@ class Match:
         return self.castles[player_index]
 
     def opponent_of(self, player_index: int) -> int:
+        """The next seat clockwise. With more than two players this is simply
+        the neighbour, not "the enemy" - use :meth:`living_opponents` for that.
+        """
         return (player_index + 1) % len(self.players)
+
+    def living_players(self) -> list[int]:
+        return [castle.owner for castle in self.castles if castle.alive]
+
+    def living_opponents(self, player_index: int) -> list[int]:
+        return [index for index in self.living_players() if index != player_index]
+
+    @property
+    def round_number(self) -> int:
+        """Full rounds played so far, counting from 1."""
+        return (self.turn_number - 1) // max(1, len(self.players)) + 1
 
     # -- aiming -------------------------------------------------------------
 
@@ -382,6 +407,7 @@ class Match:
                     stats.self_destructs += 1
                 else:
                     stats.kills += 1
+                self.last_event = "A castle falls to rubble!"
         return dealt
 
     def _finish_shot(self) -> None:
@@ -424,10 +450,9 @@ class Match:
         self.next_turn()
 
     def _check_game_over(self) -> bool:
-        dead = [castle for castle in self.castles if not castle.alive]
-        if not dead:
-            return False
         survivors = [castle for castle in self.castles if castle.alive]
+        if len(survivors) > 1:
+            return False
         self.winner = survivors[0].owner if len(survivors) == 1 else None
         self.phase = Phase.GAME_OVER
         self.last_event = "Victory!" if self.winner is not None else "Everyone lost."
@@ -441,17 +466,31 @@ class Match:
             winner=self.winner,
             turns=self.turn_number,
             player_names=[player.name for player in self.players],
+            color_indices=[player.color_index for player in self.players],
             stats=stats,
             awards=award_winners(stats),
         )
 
     def next_turn(self) -> None:
-        """Hand the cannon to the other player and reroll the wind."""
-        self.current_player = self.opponent_of(self.current_player)
+        """Hand the cannon to the next player still standing and reroll the wind."""
+        count = len(self.players)
+        for offset in range(1, count + 1):
+            candidate = (self.current_player + offset) % count
+            if self.castles[candidate].alive:
+                self.current_player = candidate
+                break
         self.turn_number += 1
         self.roll_wind()
-        self.player.money += config.TURN_INCOME
+        self._grant_income(self.player)
         self.phase = Phase.AIM
+
+    def _grant_income(self, player: Player) -> None:
+        """Pay a player their lump sum for the turn they are about to take."""
+        castle = self.castles[player.index]
+        health = castle.hp / castle.max_hp if castle.max_hp else 0.0
+        player.money += self.setup.income_for(
+            round_number=self.round_number, health_fraction=health
+        )
 
     # -- helpers for the view ----------------------------------------------
 

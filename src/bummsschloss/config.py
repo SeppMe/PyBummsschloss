@@ -94,11 +94,49 @@ CASTLE_SAFE_FALL: Final = 6.0
 #: Hit points lost per pixel of (unsafe) fall height.
 CASTLE_FALL_DAMAGE: Final = 0.55
 
-#: Horizontal positions of the two castles, as a fraction of the world width.
-CASTLE_SPOTS: Final = (0.14, 0.86)
+#: Castle positions are spread evenly around the wrapping world, so that every
+#: seat has the same distance to both of its neighbours.
+def castle_spots(count: int) -> tuple[float, ...]:
+    """Return the castle positions for ``count`` players, as fractions of the width."""
+    return tuple((index + 0.5) / count for index in range(count))
 
-#: Player colours, one per seat.
-PLAYER_COLORS: Final[tuple[Color, ...]] = ((220, 72, 64), (72, 140, 220))
+
+#: How many seats a match can have.
+MIN_PLAYERS: Final = 2
+MAX_PLAYERS: Final = 4
+
+#: Selectable player colours: source name for translation plus the RGB value.
+PLAYER_PALETTE: Final[tuple[tuple[str, Color], ...]] = (
+    ("red", (220, 72, 64)),
+    ("blue", (72, 140, 220)),
+    ("green", (96, 200, 104)),
+    ("yellow", (236, 204, 80)),
+    ("purple", (176, 112, 220)),
+    ("orange", (240, 140, 60)),
+)
+
+
+def player_color(color_index: int) -> Color:
+    """Return the RGB value of a palette entry, wrapping on overflow."""
+    return PLAYER_PALETTE[color_index % len(PLAYER_PALETTE)][1]
+
+
+def player_color_name(color_index: int) -> str:
+    """Return the untranslated source name of a palette entry."""
+    return PLAYER_PALETTE[color_index % len(PLAYER_PALETTE)][0]
+
+
+# --- Economy options --------------------------------------------------------
+# Values offered in the pre-match menu.
+
+STARTING_MONEY_CHOICES: Final[tuple[int, ...]] = (0, 300, 600, 1200, 2500)
+TURN_INCOME_CHOICES: Final[tuple[int, ...]] = (100, 250, 400, 700)
+
+#: "Rising" economy: each full round adds this share of the base income.
+INCOME_RISE_PER_ROUND: Final = 0.25
+
+#: "Catch-up" economy: a castle at death's door earns up to this much extra.
+INCOME_CATCHUP_BONUS: Final = 1.0
 
 # --- Aiming -----------------------------------------------------------------
 
