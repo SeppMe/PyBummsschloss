@@ -14,6 +14,7 @@ import pygame
 from bummsschloss import config
 from bummsschloss.i18n import gettext as _
 from bummsschloss.matchsetup import MAX_NAME_LENGTH, MatchSetup
+from bummsschloss.net import protocol
 from bummsschloss.resources import load_font
 from bummsschloss.scenes.base import Scene
 
@@ -36,11 +37,11 @@ class Row:
 
     @property
     def editable_name(self) -> bool:
-        return self.kind == "seat"
+        return self.kind in ("seat", "myname")
 
     @property
     def has_arrows(self) -> bool:
-        return self.kind != "start"
+        return self.kind not in ("start", "myname")
 
 
 class SetupScene(Scene):
@@ -50,6 +51,10 @@ class SetupScene(Scene):
         super().__init__(app)
         self.setup = setup or MatchSetup.default()
         self.selected = 0
+        #: Hotseat passes one keyboard around; network play uses a broker.
+        self.networked = False
+        self.hosting = True
+        self.room = protocol.new_room_code()
 
     def on_enter(self) -> None:
         self.font = load_font(16)
@@ -66,9 +71,17 @@ class SetupScene(Scene):
     # -- rows ---------------------------------------------------------------
 
     def rows(self) -> list[Row]:
-        rows = [Row("count")]
-        rows += [Row("seat", seat) for seat in range(self.setup.player_count)]
-        rows += [Row("money"), Row("income"), Row("model"), Row("start")]
+        rows = [Row("mode")]
+        if self.networked:
+            rows += [Row("role"), Row("room"), Row("myname", 0)]
+            if self.hosting:
+                # Only the host's economy counts, so a guest is not asked.
+                rows += [Row("money"), Row("income"), Row("model")]
+        else:
+            rows.append(Row("count"))
+            rows += [Row("seat", seat) for seat in range(self.setup.player_count)]
+            rows += [Row("money"), Row("income"), Row("model")]
+        rows.append(Row("start"))
         return rows
 
     @property
@@ -109,12 +122,16 @@ class SetupScene(Scene):
             self._adjust(row, -1)
         elif event.key == pygame.K_RIGHT:
             self._adjust(row, 1)
+        elif event.key == pygame.K_BACKSPACE and row.kind == "room":
+            self.room = self.room[:-1]
         elif event.key == pygame.K_BACKSPACE and row.editable_name:
             # Rubbing out a default name clears the whole field at once.
             if self.setup.is_default_name(row.seat):
                 self.setup.rename(row.seat, "")
             else:
                 self.setup.rename(row.seat, self.setup.players[row.seat].name[:-1])
+        elif row.kind == "room" and self._is_typable(event.unicode):
+            self.room = protocol.clean_room_code(self.room + event.unicode)
         elif row.editable_name and self._is_typable(event.unicode):
             # The first keystroke replaces the default name rather than
             # appending to it, so nobody has to delete "Player 3" by hand.
@@ -127,7 +144,17 @@ class SetupScene(Scene):
         return bool(text) and text.isprintable() and text != "\t"
 
     def _adjust(self, row: Row, step: int) -> None:
-        if row.kind == "count":
+        if row.kind == "mode":
+            self.networked = not self.networked
+            self.selected = min(self.selected, len(self.rows()) - 1)
+        elif row.kind == "role":
+            self.hosting = not self.hosting
+            if self.hosting:
+                self.room = protocol.new_room_code()
+            self.selected = min(self.selected, len(self.rows()) - 1)
+        elif row.kind == "room":
+            self.room = protocol.new_room_code()
+        elif row.kind == "count":
             self.setup.set_player_count(self.setup.player_count + step)
             self.selected = min(self.selected, len(self.rows()) - 1)
         elif row.kind == "seat":
@@ -160,11 +187,35 @@ class SetupScene(Scene):
         return None
 
     def start_match(self) -> None:
+        if self.networked:
+            self.start_network_game()
+            return
         from bummsschloss.match import Match
         from bummsschloss.scenes.match import MatchScene
 
         match_ = Match(setup=self.setup, seed=self.setup.seed)
         self.app.replace_scene(MatchScene(self.app, match_))
+
+    def start_network_game(self) -> None:
+        """Open the room on the broker and move to the lobby."""
+        from bummsschloss.net.session import NetSession
+        from bummsschloss.net.transport import MqttTransport
+        from bummsschloss.scenes.lobby import LobbyScene
+
+        room = protocol.clean_room_code(self.room)
+        if len(room) < protocol.ROOM_CODE_LENGTH:
+            self.room = room
+            return  # an incomplete code would put the player in a room of one
+        self.room = room
+
+        session = NetSession(
+            MqttTransport(room),
+            name=self.setup.display_name(0),
+            is_host=self.hosting,
+            room=room,
+            setup=self.setup,
+        )
+        self.app.replace_scene(LobbyScene(self.app, session, self.setup))
 
     # -- geometry -----------------------------------------------------------
 
@@ -215,6 +266,8 @@ class SetupScene(Scene):
 
         if row.kind == "seat":
             self._draw_seat_value(surface, row.seat, y, selected)
+        elif row.kind == "myname":
+            self._draw_seat_value(surface, row.seat, y, selected, swatch=False)
         else:
             value = self.font.render(self._value_for(row), True, config.ACCENT)
             centre = (VALUE_LEFT + VALUE_RIGHT) // 2
@@ -226,6 +279,14 @@ class SetupScene(Scene):
                 surface.blit(arrow, self._arrow_rect(index, direction).topleft)
 
     def _label_for(self, row: Row) -> str:
+        if row.kind == "mode":
+            return _("game type")
+        if row.kind == "role":
+            return _("role")
+        if row.kind == "room":
+            return _("room code")
+        if row.kind == "myname":
+            return _("your name")
         if row.kind == "count":
             return _("players")
         if row.kind == "seat":
@@ -237,6 +298,12 @@ class SetupScene(Scene):
         return _("economy")
 
     def _value_for(self, row: Row) -> str:
+        if row.kind == "mode":
+            return _("network") if self.networked else _("hotseat")
+        if row.kind == "role":
+            return _("host") if self.hosting else _("join")
+        if row.kind == "room":
+            return self.room or "-----"
         if row.kind == "count":
             return str(self.setup.player_count)
         if row.kind == "money":
@@ -246,34 +313,43 @@ class SetupScene(Scene):
         return _(self.setup.income_model.label)
 
     def _draw_seat_value(
-        self, surface: pygame.Surface, seat: int, y: int, selected: bool
+        self, surface: pygame.Surface, seat: int, y: int, selected: bool, swatch: bool = True
     ) -> None:
         player = self.setup.players[seat]
-        swatch = pygame.Rect(VALUE_LEFT, y + 2, 16, 16)
-        pygame.draw.rect(surface, player.color, swatch)
-        pygame.draw.rect(surface, config.GREY, swatch, 1)
+        text_left = VALUE_LEFT
+        if swatch:
+            box = pygame.Rect(VALUE_LEFT, y + 2, 16, 16)
+            pygame.draw.rect(surface, player.color, box)
+            pygame.draw.rect(surface, config.GREY, box, 1)
+            text_left = VALUE_LEFT + 26
 
         name = player.name
         # Default names are source strings, so they get translated for display.
         label = _(name) if self.setup.is_default_name(seat) else name
-        text = self.font.render(label or _("(unnamed)"), True, player.color)
-        surface.blit(text, (VALUE_LEFT + 26, y))
+        color = player.color if swatch else config.ACCENT
+        text = self.font.render(label or _("(unnamed)"), True, color)
+        surface.blit(text, (text_left, y))
 
         if selected:
             # A blinking caret shows that this field takes typing.
             if int(self._caret_timer * 2) % 2 == 0 and len(name) < MAX_NAME_LENGTH:
-                caret_x = VALUE_LEFT + 28 + text.get_width()
+                caret_x = text_left + 2 + text.get_width()
                 pygame.draw.line(
                     surface, config.WHITE, (caret_x, y + 2), (caret_x, y + 17), 1
                 )
 
     def _draw_start(self, surface: pygame.Surface, y: int, selected: bool) -> None:
         color = config.ACCENT if selected else config.WHITE
-        text = self.font.render(_("Start the match"), True, color)
+        text = self.font.render(self._start_label(), True, color)
         box = pygame.Rect(0, 0, text.get_width() + 36, text.get_height() + 10)
         box.midtop = (surface.get_width() // 2, y - 5)
         pygame.draw.rect(surface, color, box, 1)
         surface.blit(text, (box.centerx - text.get_width() // 2, y))
+
+    def _start_label(self) -> str:
+        if not self.networked:
+            return _("Start the match")
+        return _("Open the room") if self.hosting else _("Join the room")
 
     def _draw_footer(self, surface: pygame.Surface) -> None:
         bottom = surface.get_height()
@@ -292,8 +368,22 @@ class SetupScene(Scene):
     def _explanation(self) -> str:
         """One line about whatever row is selected right now."""
         row = self.current_row
+        if row.kind == "mode":
+            if self.networked:
+                return _("Everyone plays at their own machine, over the internet.")
+            return _("Everybody at one keyboard, passing it around.")
+        if row.kind == "role":
+            if self.hosting:
+                return _("You open the room and start the match.")
+            return _("Enter the code your host read out to you.")
+        if row.kind == "room":
+            return _("Five characters. Arrow keys roll a fresh code.")
+        if row.kind == "myname":
+            return _("type to rename")
         if row.kind == "seat":
             return _("type to rename, arrows for colour")
         if row.kind == "start":
+            if self.networked:
+                return _("No port forwarding needed - everybody dials out.")
             return _("Everything ready? Then let the cannons speak.")
         return _(self.setup.income_model.description)

@@ -18,8 +18,9 @@ time step so the simulation stays deterministic.
 
 from __future__ import annotations
 
+import hashlib
 import math
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum, auto
 from random import Random
 
@@ -550,3 +551,131 @@ class Match:
         angle = math.radians(self.player.angle)
         speed = self.player.weapon.muzzle_speed * self.player.power
         return (math.cos(angle) * speed, math.sin(angle) * speed)
+
+    # -- network play -------------------------------------------------------
+
+    def apply_turn(self, seat: int, weapon_index: int, angle: float, power: float) -> bool:
+        """Carry out one player's turn, wherever the order came from.
+
+        This is the single entry point for a networked turn: the remote
+        player's aim is copied onto their seat and the shot goes off, so every
+        client runs exactly the same simulation from here on.
+        """
+        if self.phase is not Phase.AIM or seat != self.current_player:
+            return False
+        player = self.players[seat]
+        player.weapon_index = weapon_index % len(ARSENAL)
+        player.angle = float(angle)
+        player.power = float(power)
+        return self.fire()
+
+    def snapshot(self) -> dict:
+        """The whole match as plain data, enough to continue play from.
+
+        Shots in flight are deliberately left out: snapshots are taken between
+        turns, when the only thing moving is the players' nerves.
+        """
+        return {
+            "seed": self.seed,
+            "setup": self.setup.to_dict(),
+            "terrain": self.terrain.heights(),
+            "castles": [
+                {
+                    "owner": castle.owner,
+                    "centre_x": castle.centre_x,
+                    "bottom_y": castle.bottom_y,
+                    "hp": castle.hp,
+                }
+                for castle in self.castles
+            ],
+            "players": [
+                {
+                    "name": player.name,
+                    "color_index": player.color_index,
+                    "money": player.money,
+                    "weapon_index": player.weapon_index,
+                    "angle": player.angle,
+                    "power": player.power,
+                    "stats": asdict(player.stats),
+                }
+                for player in self.players
+            ],
+            "phase": self.phase.name,
+            "current_player": self.current_player,
+            "wind": self.wind,
+            "turn_number": self.turn_number,
+            "winner": self.winner,
+            # The random state travels too, so the next wind roll agrees.
+            "rng": _encode_rng(self.rng),
+        }
+
+    def restore(self, data: dict) -> None:
+        """Replace everything with the contents of a snapshot."""
+        self.seed = data["seed"]
+        self.setup = MatchSetup.from_dict(data["setup"])
+        self.terrain = Terrain(self.width, self.height, data["terrain"])
+        self.castles = [
+            Castle(
+                owner=entry["owner"],
+                centre_x=entry["centre_x"],
+                bottom_y=entry["bottom_y"],
+                hp=entry["hp"],
+            )
+            for entry in data["castles"]
+        ]
+        self.players = []
+        for index, entry in enumerate(data["players"]):
+            player = Player(
+                index=index,
+                name=entry["name"],
+                color_index=entry["color_index"],
+                money=entry["money"],
+                weapon_index=entry["weapon_index"],
+                angle=entry["angle"],
+                power=entry["power"],
+                stats=PlayerStats(**entry["stats"]),
+            )
+            self.players.append(player)
+
+        self.projectiles.clear()
+        self.explosions.clear()
+        self.phase = Phase[data["phase"]]
+        self.current_player = data["current_player"]
+        self.wind = data["wind"]
+        self.turn_number = data["turn_number"]
+        self.winner = data["winner"]
+        self.last_event = ""
+        self.summary = self.build_summary() if self.phase is Phase.GAME_OVER else None
+        self._settle_timer = 0.0
+        self._shot_owner = None
+        self._shot_enemy_damage = 0.0
+        self._shot_any_damage = 0.0
+        _decode_rng(self.rng, data["rng"])
+
+    def state_hash(self) -> str:
+        """A short fingerprint of everything that matters for future play.
+
+        Clients compare these after every turn. Values are rounded first: a
+        last-bit difference in somebody's ``sin`` is not worth a resync, but
+        anything a player could notice shows up here.
+        """
+        parts = [
+            f"{self.turn_number}:{self.current_player}:{self.phase.name}",
+            f"{self.wind:.2f}",
+            ",".join(f"{height:.2f}" for height in self.terrain.heights()),
+            ",".join(f"{castle.centre_x:.2f}|{castle.bottom_y:.2f}|{castle.hp:.2f}"
+                     for castle in self.castles),
+            ",".join(f"{player.money}" for player in self.players),
+        ]
+        return hashlib.sha256("/".join(parts).encode()).hexdigest()[:16]
+
+
+def _encode_rng(rng: Random) -> list:
+    """``Random.getstate`` as something JSON can carry."""
+    version, internal, gauss = rng.getstate()
+    return [version, list(internal), gauss]
+
+
+def _decode_rng(rng: Random, data: list) -> None:
+    version, internal, gauss = data
+    rng.setstate((version, tuple(internal), gauss))

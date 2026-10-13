@@ -34,6 +34,11 @@ def build_parser(default_language: str) -> argparse.ArgumentParser:
         help=_("seed for the random landscape, for reproducible matches"),
     )
     parser.add_argument(
+        "--broker",
+        default=config.MQTT_BROKER,
+        help=_("message broker for network games (default: %(default)s)"),
+    )
+    parser.add_argument(
         "--lang",
         default=default_language,
         choices=list(AVAILABLE_LANGUAGES),
@@ -57,6 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     language = preparse_language(argv)
     args = build_parser(language).parse_args(argv)
     set_language(args.lang)
+    config.MQTT_BROKER = args.broker
 
     # Imported late so that --help/--version do not pay for initialising SDL.
     from bummsschloss.app import App

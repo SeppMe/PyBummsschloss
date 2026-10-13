@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bummsschloss-2026"
-version = "1.0.0"
+version = "1.1.0"
 description = "Das quietschfidele Bummsschloss - a turn-based 2D artillery game."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,6 +21,9 @@ classifiers = [
 ]
 dependencies = [
     "pygame-ce>=2.5",
+    "paho-mqtt>=2.1",
+    # Only needed behind a company proxy, but far too small to make optional.
+    "pysocks>=1.7",
 ]
 
 [project.optional-dependencies]

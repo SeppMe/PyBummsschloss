@@ -164,6 +164,34 @@ class MatchSetup:
             amount *= 1.0 + config.INCOME_CATCHUP_BONUS * missing
         return int(round(amount))
 
+    # -- going over the wire ------------------------------------------------
+
+    def to_dict(self) -> dict:
+        """A plain-data copy, ready to be sent to the other players."""
+        return {
+            "players": [
+                {"name": seat.name, "color_index": seat.color_index} for seat in self.players
+            ],
+            "starting_money": self.starting_money,
+            "turn_income": self.turn_income,
+            "income_model": self.income_model.value,
+            "seed": self.seed,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> MatchSetup:
+        setup = cls(
+            players=[
+                PlayerSetup(name=seat["name"], color_index=seat["color_index"])
+                for seat in data["players"]
+            ],
+            starting_money=data["starting_money"],
+            turn_income=data["turn_income"],
+            income_model=IncomeModel(data["income_model"]),
+            seed=data.get("seed"),
+        )
+        return setup
+
 
 def _cycle(choices: tuple[int, ...], current: int, step: int) -> int:
     """Step through a list of offered values, landing on the nearest on a miss."""

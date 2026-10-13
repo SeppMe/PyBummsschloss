@@ -22,16 +22,19 @@ src/bummsschloss/         # the game package (src-layout)
     stats.py              # per-player statistics and the awards
     resources.py          # asset lookup / loading
     world/                # terrain, castles, projectiles (no pygame)
+    net/                  # lockstep network play over a message broker
     scenes/               # one module per screen/state of the game
     assets/               # bundled data files (images, levels, fonts)
 tests/                    # pytest suite (runs headless)
+tools/                    # small diagnostics (e.g. finding a working broker)
 packaging/                # PyInstaller recipe
 ```
 
 The rules engine (`match.py`, `matchsetup.py`, `world/`, `weapons.py`,
 `stats.py`) never imports pygame. Everything the players see lives in
-`scenes/`. That split keeps the simulation testable headless today, and makes
-it reusable as the authoritative side of a network game later.
+`scenes/`. That split keeps the simulation testable headless, and it is what
+makes network play cheap: `net/` drives the very same engine from messages
+instead of from a keyboard.
 
 ## How the game works
 
@@ -42,6 +45,7 @@ its value, Enter starts the match:
 
 | Setting | Choices |
 | --- | --- |
+| Game type | Hotseat at one keyboard, or a networked game (see below) |
 | Players | 2 to 4, each with their own castle |
 | Seat | Type to rename, arrows pick one of six colours |
 | Starting money | What everybody begins with |
@@ -128,6 +132,53 @@ destroyed, best hit rate, and a few less flattering distinctions.
 | H | Help |
 | F11 | Fullscreen |
 | Esc / Q | Quit |
+
+## Playing over the internet
+
+Set **Game type** to *network*. One player is the **host**: they get a
+five-character room code, read it out to the others, and the others set their
+role to *join* and type that code in. Everybody lands in a waiting room; the
+host presses Enter and the match begins.
+
+There is nothing to install and nothing to forward. All the clients connect
+*outwards* to a free public MQTT broker and subscribe to a topic named after
+the room code, so the broker is only ever a postbox - no accounts, no server of
+our own, and no inbound ports on anybody's router.
+
+What travels is only what a player *decided*: their weapon, angle and power.
+Every client then runs exactly the same simulation. The world itself is never
+recomputed independently - the host generates it once and sends it as a
+snapshot - and after every turn the host publishes a short hash of the world.
+A client whose hash differs asks for a fresh snapshot and carries straight on,
+so a floating-point difference between two machines can cost a bit of
+animation but never the match.
+
+### If it will not connect
+
+Networks differ, especially at the office. The default broker speaks MQTT
+inside a TLS WebSocket, which looks exactly like HTTPS and therefore gets
+through most firewalls; if `HTTPS_PROXY` is set in the environment, the game
+tunnels through that proxy like a browser would. To find out what works on your
+network:
+
+```
+python tools/netcheck.py
+```
+
+It tries each known broker, plays an actual turn across it, and prints the ones
+that worked. Pass a working address to the game - everybody in the match must
+use the same one:
+
+```
+bummsschloss --broker wss://test.mosquitto.org:8081/mqtt
+```
+
+The address can also be set once via the `BUMMSSCHLOSS_BROKER` environment
+variable. Addresses look like `wss://host:port/path` or `tcp://host:port`.
+
+Two caveats worth knowing: a public broker is public, so anybody who guesses
+your room code can watch (and join) the game, and a player who disappears
+mid-match simply stalls their own turn - there is no AI to take over.
 
 ## Development setup
 

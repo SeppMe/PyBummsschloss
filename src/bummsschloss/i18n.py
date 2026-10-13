@@ -166,6 +166,48 @@ CATALOGUES: dict[str, dict[str, str]] = {
             "so werden teure Waffen später erschwinglich.",
         "The worse your castle looks, the more you are paid.":
             "Je übler die eigene Burg aussieht, desto mehr Taler gibt es.",
+        # -- network play -------------------------------------------------
+        "game type": "Spielart",
+        "hotseat": "Hotseat",
+        "network": "Netzwerk",
+        "role": "Rolle",
+        "host": "Gastgeber",
+        "join": "beitreten",
+        "room code": "Raumcode",
+        "your name": "dein Name",
+        "type to rename": "tippen zum Umbenennen",
+        "Open the room": "Raum eröffnen",
+        "Join the room": "Raum betreten",
+        "Everybody at one keyboard, passing it around.":
+            "Alle an einer Tastatur, die herumgereicht wird.",
+        "Everyone plays at their own machine, over the internet.":
+            "Jeder spielt am eigenen Rechner, über das Internet.",
+        "You open the room and start the match.":
+            "Du eröffnest den Raum und startest die Partie.",
+        "Enter the code your host read out to you.":
+            "Gib den Code ein, den dir der Gastgeber vorgelesen hat.",
+        "Five characters. Arrow keys roll a fresh code.":
+            "Fünf Zeichen. Pfeiltasten würfeln einen neuen Code.",
+        "No port forwarding needed - everybody dials out.":
+            "Keine Portfreigabe nötig - alle wählen sich hinaus.",
+        # -- waiting room ---------------------------------------------------
+        "Waiting room": "Warteraum",
+        "Read this code out to the others.": "Lies diesen Code den anderen vor.",
+        "you": "du",
+        "Connecting to the broker...": "Verbinde mit dem Vermittler...",
+        "Nobody here yet.": "Noch niemand da.",
+        "No connection: {reason}": "Keine Verbindung: {reason}",
+        "Enter starts the match": "Eingabe startet die Partie",
+        "At least one more player is needed.":
+            "Es fehlt noch mindestens ein Mitspieler.",
+        "Waiting for the host to start...":
+            "Warte auf den Gastgeber...",
+        "Esc to leave the room": "Esc verlässt den Raum",
+        "lost the connection to the broker":
+            "Verbindung zum Vermittler verloren",
+        "Your move.": "Du bist dran.",
+        "Waiting for {player}...": "Warte auf {player}...",
+        "resynced {count}x": "{count}x neu abgeglichen",
         # -- colours ------------------------------------------------------
         "red": "Rot",
         "blue": "Blau",
@@ -198,6 +240,8 @@ CATALOGUES: dict[str, dict[str, str]] = {
             "Zahl der im Menü vorgewählten Spieler (Standard: %(default)s)",
         "language of the user interface (default: %(default)s)":
             "Sprache der Benutzeroberfläche (Standard: %(default)s)",
+        "message broker for network games (default: %(default)s)":
+            "Vermittler für Netzwerkspiele (Standard: %(default)s)",
     },
 }
 

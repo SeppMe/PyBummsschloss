@@ -7,6 +7,7 @@ This module is the only place that knows about pygame; all rules live in
 from __future__ import annotations
 
 import math
+import time
 
 import pygame
 
@@ -40,9 +41,12 @@ def weapon_stat_line(weapon) -> str:
 class MatchScene(Scene):
     """Draws the match and feeds hotseat input into the rules engine."""
 
-    def __init__(self, app, match: Match | None = None) -> None:
+    def __init__(self, app, match: Match | None = None, session=None) -> None:
         super().__init__(app)
         self.match = match or Match()
+        #: ``None`` for a hotseat game; a
+        #: :class:`~bummsschloss.net.session.NetSession` for a networked one.
+        self.session = session
 
     def on_enter(self) -> None:
         self.font = load_font(15)
@@ -53,6 +57,21 @@ class MatchScene(Scene):
         self.show_help = False
         self.show_arsenal = False
         self._sky = self._build_sky()
+
+    # -- network ------------------------------------------------------------
+
+    @property
+    def my_move(self) -> bool:
+        """True while this machine's player is the one holding the lanyard."""
+        return self.session is None or self.session.my_turn
+
+    def _fire(self) -> None:
+        """Pull the trigger - locally, or by telling the whole room."""
+        if self.session is None:
+            self.match.fire()
+        elif self.match.can_fire():
+            player = self.match.player
+            self.session.submit_turn(player.weapon_index, player.angle, player.power)
 
     # -- input --------------------------------------------------------------
 
@@ -68,6 +87,9 @@ class MatchScene(Scene):
                 self.show_arsenal = not self.show_arsenal
             elif event.key == pygame.K_m:
                 self._back_to_menu()
+            elif not self.my_move:
+                # Somebody else's turn: the cannon does not listen to us.
+                return
             elif pygame.K_1 <= event.key <= pygame.K_9:
                 match_.select_weapon(event.key - pygame.K_1)
             elif event.key == pygame.K_TAB:
@@ -81,20 +103,24 @@ class MatchScene(Scene):
             elif event.key == pygame.K_DOWN:
                 match_.adjust_power(-config.POWER_STEP)
             elif event.key in (pygame.K_SPACE, pygame.K_RETURN):
-                match_.fire()
+                self._fire()
+        elif not self.my_move:
+            return
         elif event.type == pygame.MOUSEMOTION:
             if match_.phase is Phase.AIM:
                 match_.aim_at(*self.app.mouse_pos)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if match_.phase is Phase.AIM:
                 match_.aim_at(*self.app.mouse_pos)
-                match_.fire()
+                self._fire()
         elif event.type == pygame.MOUSEWHEEL:
             match_.adjust_power(event.y * config.POWER_STEP)
 
     # -- simulation ---------------------------------------------------------
 
     def update(self, dt: float) -> None:
+        if self.session is not None:
+            self.session.poll(time.monotonic())
         self.match.update(dt)
         if self.match.phase is Phase.GAME_OVER and self.match.summary is not None:
             from bummsschloss.scenes.summary import SummaryScene
@@ -104,6 +130,8 @@ class MatchScene(Scene):
     def _back_to_menu(self) -> None:
         from bummsschloss.scenes.setup import SetupScene
 
+        if self.session is not None:
+            self.session.close()
         self.app.replace_scene(SetupScene(self.app, self.match.setup))
 
     # -- drawing ------------------------------------------------------------
@@ -307,6 +335,33 @@ class MatchScene(Scene):
 
         hint = self.small_font.render(_("H for help, W for the arsenal"), True, config.GREY)
         surface.blit(hint, (width - hint.get_width() - 8, HUD_HEIGHT - 16))
+
+        if self.session is not None:
+            self._draw_network_line(surface, width)
+
+    def _draw_network_line(self, surface: pygame.Surface, width: int) -> None:
+        """A short line telling the player whether they may touch anything."""
+        session = self.session
+        if self.match.phase is not Phase.AIM:
+            text = ""
+        elif session.my_turn:
+            text = _("Your move.")
+        else:
+            text = _("Waiting for {player}...").format(player=_(self.match.player.name))
+
+        if text:
+            color = config.ACCENT if session.my_turn else config.GREY
+            label = self.font.render(text, True, color)
+            surface.blit(label, (width // 2 - label.get_width() // 2, HUD_HEIGHT + 28))
+
+        if session.failure:
+            trouble = self.small_font.render(_(session.failure), True, config.ACCENT)
+            surface.blit(trouble, (8, HUD_HEIGHT - 16))
+        elif session.resyncs:
+            note = self.small_font.render(
+                _("resynced {count}x").format(count=session.resyncs), True, config.GREY
+            )
+            surface.blit(note, (8, HUD_HEIGHT - 16))
 
     def _panel_x(self, seat: int) -> int:
         """Place the seats in two blocks, leaving the middle free for the wind."""

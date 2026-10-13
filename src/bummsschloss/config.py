@@ -134,7 +134,6 @@ def castle_spots(count: int, rng: Random | None = None) -> tuple[float, ...]:
 #: How many seats a match can have.
 MIN_PLAYERS: Final = 2
 MAX_PLAYERS: Final = 4
-
 #: Selectable player colours: source name for translation plus the RGB value.
 PLAYER_PALETTE: Final[tuple[tuple[str, Color], ...]] = (
     ("red", (220, 72, 64)),
@@ -174,4 +173,74 @@ MIN_POWER: Final = 0.05
 MAX_POWER: Final = 1.0
 POWER_STEP: Final = 0.02
 ANGLE_STEP: Final = 0.5  # degrees per key press
+
+# --- Network ----------------------------------------------------------------
+# A public MQTT broker is used as a plain postbox, which is what spares the
+# players any port forwarding: everybody connects *out* to the same server and
+# subscribes to a topic named after their room code.
+#
+# Plain MQTT on port 1883 is the obvious choice at home and hopeless at the
+# office, where only HTTP(S) tends to get out. The brokers below are therefore
+# listed as WebSocket-over-TLS first: that is ordinary HTTPS traffic on port
+# 443 or 8884 and has the best chance of passing a corporate firewall.
+#
+# The address can be overridden without touching the code: set
+# ``BUMMSSCHLOSS_BROKER`` or pass ``--broker``. Accepted forms are
+# ``wss://host:port/path``, ``tcp://host:port`` and a bare ``host`` or
+# ``host:port`` (which means plain MQTT).
+
+#: Brokers to offer, in order. All of them are free and need no account.
+#: The Mosquitto test server is first because its WebSocket port is the one
+#: most likely to be allowed through a company proxy.
+MQTT_BROKER_CHOICES: Final = (
+    "wss://test.mosquitto.org:8081/mqtt",
+    "wss://broker.emqx.io:8084/mqtt",
+    "wss://broker.hivemq.com:8884/mqtt",
+    "tcp://broker.hivemq.com:1883",
+)
+
+
+def parse_broker(address: str) -> tuple[str, str, int, str]:
+    """Split a broker address into ``(scheme, host, port, path)``.
+
+    The scheme is one of ``tcp``, ``ws`` or ``wss``; missing ports fall back to
+    the usual one for the scheme.
+    """
+    scheme, separator, rest = address.partition("://")
+    if not separator:
+        scheme, rest = "tcp", address
+    scheme = scheme.lower()
+    if scheme not in ("tcp", "ws", "wss"):
+        scheme = "tcp"
+
+    host_port, _slash, path = rest.partition("/")
+    host, _colon, port = host_port.partition(":")
+    default_port = {"tcp": 1883, "ws": 8080, "wss": 443}[scheme]
+    try:
+        number = int(port) if port else default_port
+    except ValueError:
+        number = default_port
+    return scheme, host, number, "/" + path if path else "/mqtt"
+
+
+def _broker_from_environment() -> str:
+    import os
+
+    return os.environ.get("BUMMSSCHLOSS_BROKER", "").strip() or MQTT_BROKER_CHOICES[0]
+
+
+#: The broker actually used. Reassigned by ``--broker`` before anything connects.
+MQTT_BROKER = _broker_from_environment()
+MQTT_TOPIC_PREFIX: Final = "bummsschloss/v1"
+
+#: Seconds between the host's repeated lobby announcements, so that somebody
+#: joining late still learns who is already sitting at the table.
+LOBBY_BROADCAST_INTERVAL: Final = 2.0
+
+#: Seconds a peer may be silent before the lobby lists it as gone.
+PEER_TIMEOUT: Final = 12.0
+
+#: Seconds of trouble with the broker before the lobby gives up on it. Short
+#: outages are normal and paho reconnects on its own, so we wait a little.
+CONNECT_TIMEOUT: Final = 10.0
 
