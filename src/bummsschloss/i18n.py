@@ -188,6 +188,8 @@ CATALOGUES: dict[str, dict[str, str]] = {
             "Gib den Code ein, den dir der Gastgeber vorgelesen hat.",
         "Five characters. Arrow keys roll a fresh code.":
             "Fünf Zeichen. Pfeiltasten würfeln einen neuen Code.",
+        "Type the code your host gave you, five characters.":
+            "Tippe den Code des Gastgebers ein, fünf Zeichen.",
         "No port forwarding needed - everybody dials out.":
             "Keine Portfreigabe nötig - alle wählen sich hinaus.",
         # -- waiting room ---------------------------------------------------

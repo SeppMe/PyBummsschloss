@@ -55,6 +55,10 @@ class SetupScene(Scene):
         self.networked = False
         self.hosting = True
         self.room = protocol.new_room_code()
+        #: True while the code is one we made up, so the first keystroke of a
+        #: player typing somebody else's code replaces it instead of being
+        #: silently dropped on a field that is already full.
+        self._room_generated = True
 
     def on_enter(self) -> None:
         self.font = load_font(16)
@@ -123,7 +127,10 @@ class SetupScene(Scene):
         elif event.key == pygame.K_RIGHT:
             self._adjust(row, 1)
         elif event.key == pygame.K_BACKSPACE and row.kind == "room":
-            self.room = self.room[:-1]
+            # A code we made up goes in one go; one the player typed, letter
+            # by letter.
+            self.room = "" if self._room_generated else self.room[:-1]
+            self._room_generated = False
         elif event.key == pygame.K_BACKSPACE and row.editable_name:
             # Rubbing out a default name clears the whole field at once.
             if self.setup.is_default_name(row.seat):
@@ -131,7 +138,9 @@ class SetupScene(Scene):
             else:
                 self.setup.rename(row.seat, self.setup.players[row.seat].name[:-1])
         elif row.kind == "room" and self._is_typable(event.unicode):
-            self.room = protocol.clean_room_code(self.room + event.unicode)
+            base = "" if self._room_generated else self.room
+            self._room_generated = False
+            self.room = protocol.clean_room_code(base + event.unicode)
         elif row.editable_name and self._is_typable(event.unicode):
             # The first keystroke replaces the default name rather than
             # appending to it, so nobody has to delete "Player 3" by hand.
@@ -149,11 +158,17 @@ class SetupScene(Scene):
             self.selected = min(self.selected, len(self.rows()) - 1)
         elif row.kind == "role":
             self.hosting = not self.hosting
-            if self.hosting:
-                self.room = protocol.new_room_code()
+            # A guest needs an empty field to type the host's code into; a
+            # host needs a code to read out.
+            self.room = protocol.new_room_code() if self.hosting else ""
+            self._room_generated = self.hosting
             self.selected = min(self.selected, len(self.rows()) - 1)
         elif row.kind == "room":
-            self.room = protocol.new_room_code()
+            # Only the host has anything to cycle through - a guest must type
+            # the one code that gets them to their friends.
+            if self.hosting:
+                self.room = protocol.new_room_code()
+                self._room_generated = True
         elif row.kind == "count":
             self.setup.set_player_count(self.setup.player_count + step)
             self.selected = min(self.selected, len(self.rows()) - 1)
@@ -174,7 +189,7 @@ class SetupScene(Scene):
         row = self.rows()[hit]
         if row.kind == "start":
             self.start_match()
-        elif row.has_arrows:
+        elif self._takes_arrows(row):
             if self._arrow_rect(hit, -1).collidepoint(pos):
                 self._adjust(row, -1)
             elif self._arrow_rect(hit, 1).collidepoint(pos):
@@ -268,15 +283,43 @@ class SetupScene(Scene):
             self._draw_seat_value(surface, row.seat, y, selected)
         elif row.kind == "myname":
             self._draw_seat_value(surface, row.seat, y, selected, swatch=False)
+        elif row.kind == "room":
+            self._draw_room_value(surface, y, selected)
         else:
             value = self.font.render(self._value_for(row), True, config.ACCENT)
             centre = (VALUE_LEFT + VALUE_RIGHT) // 2
             surface.blit(value, (centre - value.get_width() // 2, y))
 
-        if row.has_arrows and selected:
+        if self._takes_arrows(row) and selected:
             for direction, glyph in ((-1, "<"), (1, ">")):
                 arrow = self.font.render(glyph, True, config.ACCENT)
                 surface.blit(arrow, self._arrow_rect(index, direction).topleft)
+
+    def _takes_arrows(self, row: Row) -> bool:
+        """Whether this row has anything to step through right now."""
+        if row.kind == "room":
+            # A guest has to type the host's code; there is nothing to cycle.
+            return self.hosting
+        return row.has_arrows
+
+    def _draw_room_value(self, surface: pygame.Surface, y: int, selected: bool) -> None:
+        """The room code as a typable field, with the empty slots shown."""
+        code = self.room
+        filled = self.font.render(code, True, config.ACCENT)
+        missing = "_" * (protocol.ROOM_CODE_LENGTH - len(code))
+        blanks = self.font.render(missing, True, config.GREY)
+
+        centre = (VALUE_LEFT + VALUE_RIGHT) // 2
+        left = centre - (filled.get_width() + blanks.get_width()) // 2
+        surface.blit(filled, (left, y))
+        surface.blit(blanks, (left + filled.get_width(), y))
+
+        if selected and len(code) < protocol.ROOM_CODE_LENGTH:
+            if int(self._caret_timer * 2) % 2 == 0:
+                caret_x = left + filled.get_width() + 1
+                pygame.draw.line(
+                    surface, config.WHITE, (caret_x, y + 2), (caret_x, y + 17), 1
+                )
 
     def _label_for(self, row: Row) -> str:
         if row.kind == "mode":
@@ -377,7 +420,9 @@ class SetupScene(Scene):
                 return _("You open the room and start the match.")
             return _("Enter the code your host read out to you.")
         if row.kind == "room":
-            return _("Five characters. Arrow keys roll a fresh code.")
+            if self.hosting:
+                return _("Five characters. Arrow keys roll a fresh code.")
+            return _("Type the code your host gave you, five characters.")
         if row.kind == "myname":
             return _("type to rename")
         if row.kind == "seat":

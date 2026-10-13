@@ -70,12 +70,13 @@ def test_a_host_gets_a_room_code_to_read_out(app):
 
 
 def test_a_guest_types_the_code_they_were_given(app):
+    """The field starts out with a code of ours; typing must replace it."""
     scene = SetupScene(app)
     app.push_scene(scene)
-    scene.networked = True
-    scene.hosting = False
-    scene.room = ""
+    scene._adjust(scene.rows()[0], 1)  # network
+    scene._adjust(scene.rows()[1], 1)  # join
     scene.selected = kinds(scene).index("room")
+    assert scene.room == "", "a guest starts with an empty field"
 
     for char in "qw3rt!":  # the "!" is not part of the alphabet and is dropped
         press(scene, ord(char), char)
@@ -83,6 +84,37 @@ def test_a_guest_types_the_code_they_were_given(app):
 
     press(scene, pygame.K_BACKSPACE)
     assert scene.room == "QW3R"
+
+
+def test_typing_over_a_code_we_made_up_works(app):
+    """Nothing may be swallowed just because the field already looks full."""
+    scene = SetupScene(app)
+    app.push_scene(scene)
+    scene.networked = True
+    scene.selected = kinds(scene).index("room")
+    assert len(scene.room) == protocol.ROOM_CODE_LENGTH
+
+    for char in "ab3cd":
+        press(scene, ord(char), char)
+    assert scene.room == "AB3CD"
+
+
+def test_a_guest_cannot_shuffle_the_code_away(app):
+    """Arrow keys reroll the host's code, but must not touch a typed one."""
+    scene = SetupScene(app)
+    app.push_scene(scene)
+    scene.networked = True
+    scene.hosting = False
+    scene.room = "AB3CD"
+    room_row = scene.rows()[kinds(scene).index("room")]
+
+    scene._adjust(room_row, 1)
+    assert scene.room == "AB3CD"
+    assert not scene._takes_arrows(room_row)
+
+    scene.hosting = True
+    scene._adjust(room_row, 1)
+    assert scene.room != "AB3CD"
 
 
 def test_an_incomplete_code_does_not_open_a_room(app):
