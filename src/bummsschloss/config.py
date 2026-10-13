@@ -70,6 +70,11 @@ WIND_MAX: Final = 160.0
 #: around the wrapping world can never stall the game.
 MAX_FLIGHT_TIME: Final = 22.0
 
+#: How far above the screen a gravity-free shot must be before it is written
+#: off. Such a shot cannot fall back, so waiting for the flight timer would
+#: only bore the players.
+LOST_IN_SKY_MARGIN: Final = 400.0
+
 #: How many past positions of a shot are kept for its trail.
 TRAIL_LENGTH: Final = 90
 

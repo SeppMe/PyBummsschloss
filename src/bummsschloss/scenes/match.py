@@ -23,6 +23,19 @@ HUD_HEIGHT = 92
 PANEL_WIDTH = 158
 PANEL_MARGIN = 16
 
+#: Layout of the weapon chips along the bottom of the screen.
+CHIP_HEIGHT = 20
+CHIP_PADDING = 22
+
+
+def weapon_stat_line(weapon) -> str:
+    """The numbers behind a weapon, in one compact line."""
+    reach = _("everyone") if weapon.hits_everything else f"{weapon.blast_radius:.0f}"
+    return (
+        f"{_('damage')} {weapon.damage:.0f}   {_('reach')} {reach}   "
+        f"{_('wind')} {weapon.wdabhkt:.0%}   {_('gravity')} {weapon.gravity_scale:.0%}"
+    )
+
 
 class MatchScene(Scene):
     """Draws the match and feeds hotseat input into the rules engine."""
@@ -38,6 +51,7 @@ class MatchScene(Scene):
         self._terrain_cache: pygame.Surface | None = None
         self._terrain_version = -1
         self.show_help = False
+        self.show_arsenal = False
         self._sky = self._build_sky()
 
     # -- input --------------------------------------------------------------
@@ -50,6 +64,8 @@ class MatchScene(Scene):
                 self.app.quit()
             elif event.key == pygame.K_h:
                 self.show_help = not self.show_help
+            elif event.key == pygame.K_w:
+                self.show_arsenal = not self.show_arsenal
             elif event.key == pygame.K_n:
                 match_.reset(seed=None)
             elif event.key == pygame.K_m:
@@ -104,6 +120,8 @@ class MatchScene(Scene):
         self._draw_projectiles(surface)
         self._draw_explosions(surface)
         self._draw_hud(surface)
+        if self.show_arsenal:
+            self._draw_arsenal(surface)
         if self.show_help:
             self._draw_help(surface)
 
@@ -255,7 +273,7 @@ class MatchScene(Scene):
             text = self.font.render(_(match_.last_event), True, config.ACCENT)
             surface.blit(text, (width // 2 - text.get_width() // 2, HUD_HEIGHT + 8))
 
-        hint = self.small_font.render(_("H for help"), True, config.GREY)
+        hint = self.small_font.render(_("H for help, W for the arsenal"), True, config.GREY)
         surface.blit(hint, (width - hint.get_width() - 8, HUD_HEIGHT - 16))
 
     def _panel_x(self, seat: int) -> int:
@@ -339,36 +357,136 @@ class MatchScene(Scene):
         surface.blit(turn, (centre_x - turn.get_width() // 2, 62))
 
     def _draw_weapon_bar(self, surface: pygame.Surface) -> None:
-        player = self.match.player
-        y = surface.get_height() - 26
-        x = 18
-        for index, weapon in enumerate(ARSENAL):
-            selected = index == player.weapon_index
-            affordable = player.can_afford(weapon)
-            if selected:
-                color = config.ACCENT
-            elif affordable:
-                color = config.WHITE
-            else:
-                color = config.GREY
-            label = f"{index + 1} {_(weapon.name)} {weapon.cost}"
-            text = self.font.render(label, True, color)
-            if selected:
-                box = pygame.Rect(x - 5, y - 4, text.get_width() + 10, text.get_height() + 8)
-                pygame.draw.rect(surface, config.GREY, box, 1)
-            surface.blit(text, (x, y))
-            x += text.get_width() + 26
+        """The arsenal along the bottom, plus a readout of the chosen weapon.
 
+        The chips wrap onto as many rows as the arsenal needs, so weapons can
+        be added without the bar running off the screen.
+        """
+        player = self.match.player
+        width = surface.get_width()
+        rows = self._weapon_chip_rows(width)
+
+        panel_height = 54 + len(rows) * CHIP_HEIGHT
+        panel_top = surface.get_height() - panel_height
+        panel = pygame.Surface((width, panel_height), pygame.SRCALPHA)
+        panel.fill((0, 0, 0, 170))
+        surface.blit(panel, (0, panel_top))
+        pygame.draw.line(surface, config.GREY, (0, panel_top), (width, panel_top), 1)
+
+        self._draw_aim_readout(surface, panel_top + 6)
+        self._draw_weapon_info(surface, panel_top + 28)
+
+        y = panel_top + 52
+        for row in rows:
+            x = PANEL_MARGIN
+            for index, label in row:
+                self._draw_weapon_chip(surface, index, label, x, y, player)
+                x += self.small_font.size(label)[0] + CHIP_PADDING
+            y += CHIP_HEIGHT
+
+    def _weapon_chip_rows(self, width: int) -> list[list[tuple[int, str]]]:
+        """Lay the weapon labels out into rows that fit the screen."""
+        rows: list[list[tuple[int, str]]] = [[]]
+        x = PANEL_MARGIN
+        for index, weapon in enumerate(ARSENAL):
+            label = f"{index + 1} {_(weapon.name)} {weapon.cost}"
+            chip_width = self.small_font.size(label)[0] + CHIP_PADDING
+            if rows[-1] and x + chip_width > width - PANEL_MARGIN:
+                rows.append([])
+                x = PANEL_MARGIN
+            rows[-1].append((index, label))
+            x += chip_width
+        return rows
+
+    def _draw_weapon_chip(
+        self, surface: pygame.Surface, index: int, label: str, x: int, y: int, player
+    ) -> None:
+        weapon = ARSENAL[index]
+        selected = index == player.weapon_index
+        if selected:
+            color = config.ACCENT
+        elif player.can_afford(weapon):
+            color = config.WHITE
+        else:
+            color = config.GREY
+        text = self.small_font.render(label, True, color)
+        if selected:
+            box = pygame.Rect(x - 5, y - 3, text.get_width() + 10, text.get_height() + 6)
+            pygame.draw.rect(surface, config.ACCENT, box, 1)
+        surface.blit(text, (x, y))
+
+    def _draw_aim_readout(self, surface: pygame.Surface, y: int) -> None:
+        player = self.match.player
         readout = self.font.render(
             f"{_('angle')} {-player.angle:5.1f}°   {_('power')} {player.power * 100:3.0f}%",
             True,
             config.WHITE,
         )
-        surface.blit(readout, (18, y - 26))
+        surface.blit(readout, (PANEL_MARGIN, y))
 
         if not player.can_afford(player.weapon):
             warning = self.font.render(_("Not enough money for this weapon."), True, config.RED)
-            surface.blit(warning, (18, y - 48))
+            surface.blit(warning, (PANEL_MARGIN + readout.get_width() + 30, y))
+
+    def _draw_weapon_info(self, surface: pygame.Surface, y: int) -> None:
+        """Tell the player what the weapon in their hands actually does."""
+        weapon = self.match.player.weapon
+        name = self.font.render(f"{_(weapon.name)}:", True, config.ACCENT)
+        surface.blit(name, (PANEL_MARGIN, y - 2))
+
+        description = self.small_font.render(_(weapon.description), True, config.WHITE)
+        surface.blit(description, (PANEL_MARGIN + name.get_width() + 8, y))
+
+        stats = self.small_font.render(weapon_stat_line(weapon), True, config.GREY)
+        surface.blit(stats, (surface.get_width() - stats.get_width() - PANEL_MARGIN, y))
+
+    def _draw_arsenal(self, surface: pygame.Surface) -> None:
+        """A full table of the arsenal, so weapons can be compared side by side."""
+        player = self.match.player
+        box = pygame.Rect(0, 0, 840, 72 + len(ARSENAL) * 30)
+        box.center = (surface.get_width() // 2, surface.get_height() // 2)
+
+        backdrop = pygame.Surface(box.size, pygame.SRCALPHA)
+        backdrop.fill((0, 0, 0, 225))
+        surface.blit(backdrop, box.topleft)
+        pygame.draw.rect(surface, config.GREY, box, 1)
+
+        heading = self.font.render(_("Arsenal"), True, config.ACCENT)
+        surface.blit(heading, (box.left + 20, box.top + 14))
+        pygame.draw.line(
+            surface,
+            config.GREY,
+            (box.left + 16, box.top + 38),
+            (box.right - 16, box.top + 38),
+            1,
+        )
+
+        for index, weapon in enumerate(ARSENAL):
+            top = box.top + 48 + index * 30
+            selected = index == player.weapon_index
+            if selected:
+                color = config.ACCENT
+            elif player.can_afford(weapon):
+                color = config.WHITE
+            else:
+                color = config.GREY
+
+            title = self.font.render(f"{index + 1}  {_(weapon.name)}", True, color)
+            surface.blit(title, (box.left + 20, top))
+
+            cost = self.small_font.render(f"{weapon.cost}", True, color)
+            surface.blit(cost, (box.left + 232 - cost.get_width(), top + 2))
+
+            stats = self.small_font.render(weapon_stat_line(weapon), True, config.GREY)
+            surface.blit(stats, (box.right - stats.get_width() - 20, top + 2))
+
+            description = self.small_font.render(
+                _(weapon.description), True, config.GREY if not selected else config.WHITE
+            )
+            surface.blit(description, (box.left + 252, top + 2))
+
+        hint = self.small_font.render(_("W to close"), True, config.GREY)
+        surface.blit(hint, (box.right - hint.get_width() - 20, box.bottom - 22))
 
     def _draw_help(self, surface: pygame.Surface) -> None:
         entries = [
@@ -376,7 +494,8 @@ class MatchScene(Scene):
             (_("click/space"), _("fire")),
             (_("left/right"), _("fine-tune angle")),
             (_("up/down, wheel"), _("power")),
-            ("1-6, Tab", _("choose weapon")),
+            ("1-9, Tab", _("choose weapon")),
+            ("W", _("show the arsenal")),
             ("N", _("new landscape")),
             ("M", _("back to the menu")),
             ("H", _("hide this help")),

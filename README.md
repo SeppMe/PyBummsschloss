@@ -75,8 +75,27 @@ hold it up.
 **Wind** is rerolled every turn and acts as a sideways acceleration. How much a
 shot cares about it is the weapon's `wdabhkt`
 (*Windabhängigkeitskoeffizient*): an iron ball barely notices the breeze,
-a balloon bomb is at its mercy. Each weapon also scales gravity separately, so
-mortars plummet while balloons drift.
+a balloon bomb is at its mercy, a laser ignores it entirely. Each weapon also
+scales gravity separately, so mortars plummet while balloons never come down.
+
+### The arsenal
+
+The bottom of the screen names every weapon with its price, explains what the
+selected one does, and lists its numbers. **W** opens the whole table at once.
+
+| Weapon | Cost | What makes it special |
+| --- | --- | --- |
+| Dud | 0 | Free. Skip a turn to save up - or finish someone off with it |
+| Cannonball | 50 | Cheap, heavy, barely troubled by the wind |
+| Mortar shell | 180 | Falls steeply, for targets behind a hill |
+| Balloon bomb | 220 | No gravity at all; rides the wind until it hits something |
+| Mole | 260 | Digs into the hill and noses back out; ignores your own castle |
+| Cluster barrel | 340 | Bursts at the top of its arc into five bomblets |
+| Earthquake | 420 | Hits *every* castle for the same amount - including your own |
+| Laser | 480 | Dead straight: no gravity, no wind |
+| Fat Bertha | 600 | A huge crater, and damage to match |
+
+Because the dud is free, a player can always take a turn, even when broke.
 
 **The playfield wraps.** A shot leaving the right edge comes back in on the
 left. Leaving the top or bottom of the screen is not an escape either - the
@@ -100,7 +119,8 @@ destroyed, best hit rate, and a few less flattering distinctions.
 | Click / Space | Fire |
 | Left / Right | Fine-tune the angle |
 | Up / Down, wheel | Power |
-| 1-6, Tab | Choose a weapon |
+| 1-9, Tab | Choose a weapon |
+| W | Show the arsenal |
 | N | New landscape |
 | M | Back to the setup menu |
 | H | Help |

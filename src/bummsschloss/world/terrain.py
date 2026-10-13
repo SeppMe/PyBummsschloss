@@ -132,17 +132,6 @@ class Terrain:
             self._heights[index] = min(self.height, surface + removed)
         self.version += 1
 
-    def raise_ground(self, cx: float, half_width: float, amount: float) -> None:
-        """Pile material on top of the terrain (for earth-moving weapons)."""
-        reach = int(math.ceil(half_width))
-        for offset in range(-reach, reach + 1):
-            falloff = 1.0 - abs(offset) / (half_width or 1.0)
-            if falloff <= 0:
-                continue
-            index = self.column(cx + offset)
-            self._heights[index] = max(0.0, self._heights[index] - amount * falloff)
-        self.version += 1
-
     # -- helpers ------------------------------------------------------------
 
     def polygon_points(self) -> Iterable[tuple[int, int]]:

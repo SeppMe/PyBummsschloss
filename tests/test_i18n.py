@@ -78,6 +78,14 @@ def test_all_weapon_names_are_translated():
     assert not missing, f"untranslated weapons: {missing}"
 
 
+def test_every_selectable_weapon_explains_itself_in_german():
+    from bummsschloss.weapons import ARSENAL
+
+    german = i18n.CATALOGUES["de"]
+    missing = [w.key for w in ARSENAL if not w.description or w.description not in german]
+    assert not missing, f"weapons without a German description: {missing}"
+
+
 def test_all_summary_table_labels_are_translated():
     from bummsschloss.scenes.summary import STAT_ROWS
 

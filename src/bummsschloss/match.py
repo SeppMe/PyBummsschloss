@@ -272,7 +272,7 @@ class Match:
     def _update_projectiles(self, dt: float) -> None:
         survivors: list[Projectile] = []
         for projectile in self.projectiles:
-            if projectile.expired:
+            if projectile.expired or self._gone_for_good(projectile):
                 self.last_event = "The shot was lost in the clouds."
                 continue
 
@@ -284,11 +284,28 @@ class Match:
                 continue
 
             impact = self._impact_point(previous, (projectile.x, projectile.y), projectile)
-            if impact is None:
-                survivors.append(projectile)
-            else:
+            if impact is not None:
                 self._detonate(projectile, *impact)
+            elif projectile.burrow_exhausted:
+                # The mole has dug as far as it can; it goes off where it is.
+                self.last_event = "The mole goes off underground!"
+                self._detonate(projectile, projectile.x, projectile.y)
+            else:
+                survivors.append(projectile)
         self.projectiles = survivors
+
+    def _gone_for_good(self, projectile: Projectile) -> bool:
+        """True for a shot that can provably never return to the playfield.
+
+        A weapon with no gravity that is above the sky and not descending will
+        never come back down. Retiring it at once saves the table from waiting
+        out the full flight timer.
+        """
+        return (
+            projectile.weapon.gravity_scale == 0.0
+            and projectile.vy <= 0.0
+            and projectile.y < -config.LOST_IN_SKY_MARGIN
+        )
 
     def _impact_point(
         self,
@@ -313,10 +330,24 @@ class Match:
             if y < 0:
                 continue
             for castle in self.castles:
-                if castle.alive and castle.contains(x, y, self.width):
+                if not castle.alive:
+                    continue
+                if castle.owner == projectile.owner and projectile.weapon.ignores_own_castle:
+                    # Some rounds are meant to be fired at one's own feet.
+                    continue
+                if castle.contains(x, y, self.width):
                     return (x, y)
             if self.terrain.is_solid(x, y):
-                return (x, y)
+                if projectile.can_burrow:
+                    # A digging round bites into the hill instead of stopping.
+                    projectile.start_burrowing()
+                    continue
+                if not projectile.burrowing:
+                    return (x, y)
+                continue
+            if projectile.burrowing:
+                # It has dug its way back out into the open air.
+                projectile.stop_burrowing()
             if y > self.height + 2000:
                 # Fell out of the world entirely - treat as a dud.
                 self.last_event = "The shot vanished into the abyss."
@@ -349,14 +380,13 @@ class Match:
         x = self.terrain.wrap_x(x)
 
         before = self.terrain.heights()
-        if weapon.raises_terrain:
-            self.terrain.raise_ground(x, weapon.blast_radius, weapon.blast_radius * 0.8)
-        else:
-            self.terrain.explode(x, y, weapon.blast_radius)
+        self.terrain.explode(x, y, weapon.crater_radius)
         self._credit_terrain_change(before)
         self.explosions.append(Explosion(x=x, y=y, radius=weapon.blast_radius))
 
-        if weapon.damage > 0:
+        if weapon.hits_everything:
+            self._shake_the_world(weapon, projectile.owner)
+        elif weapon.damage > 0:
             for castle in self.castles:
                 if not castle.alive:
                     continue
@@ -365,6 +395,18 @@ class Match:
                     continue
                 falloff = 1.0 - distance / weapon.blast_radius
                 self._apply_damage(castle, weapon.damage * falloff, projectile.owner)
+
+    def _shake_the_world(self, weapon: Weapon, owner: int) -> None:
+        """Hit every castle still standing for the same amount, distance be damned."""
+        for castle in self.castles:
+            if not castle.alive:
+                continue
+            self.explosions.append(
+                Explosion(x=castle.centre_x, y=castle.top_y, radius=weapon.blast_radius)
+            )
+            self._apply_damage(castle, weapon.damage, owner)
+        # Said last so it is not overwritten by the per-castle messages.
+        self.last_event = "The earth shakes - nobody is spared!"
 
     def _credit_terrain_change(self, before: list[float]) -> None:
         """Add the amount of landscape just rearranged to the shooter's tally."""

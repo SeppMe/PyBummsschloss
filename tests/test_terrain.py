@@ -66,12 +66,6 @@ def test_explosion_wraps_across_the_seam():
     assert terrain.height_at(1) > 150.0
 
 
-def test_raise_ground_piles_earth_up():
-    terrain = flat()
-    terrain.raise_ground(100, 20, 10)
-    assert terrain.height_at(100) < 150.0
-
-
 def test_version_changes_only_on_modification():
     terrain = flat()
     before = terrain.version

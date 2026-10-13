@@ -46,18 +46,51 @@ CATALOGUES: dict[str, dict[str, str]] = {
         "H for help": "H für Hilfe",
         "Not enough money for this weapon.": "Nicht genug Taler für diese Waffe.",
         # -- weapons ----------------------------------------------------
+        "Dud": "Blindgänger",
         "Cannonball": "Kanonenkugel",
         "Mortar shell": "Mörsergranate",
         "Balloon bomb": "Ballonbombe",
+        "Mole": "Maulwurf",
         "Cluster barrel": "Streufass",
+        "Earthquake": "Erdbeben",
+        "Laser": "Laser",
         "Fat Bertha": "Dicke Berta",
-        "Molehill": "Maulwurfshügel",
         "Bomblet": "Streuling",
+        # -- weapon descriptions ----------------------------------------
+        "Free, and about as dangerous as a thrown bread roll.":
+            "Kostenlos und etwa so gefährlich wie ein geworfenes Brötchen.",
+        "Cheap, heavy and barely troubled by the wind.":
+            "Billig, schwer und kaum vom Wind zu beirren.",
+        "Falls steeply - good for targets tucked behind a hill.":
+            "Fällt steil - gut für Ziele hinter einem Hügel.",
+        "Never falls. Rides the wind until it bumps into something.":
+            "Fällt nie. Reitet auf dem Wind, bis es irgendwo anstößt.",
+        "Burrows into the hill and back out. Spares the castle that fired it.":
+            "Gräbt sich in den Hügel und wieder heraus. Verschont die eigene Burg.",
+        "Bursts at the top of its arc into five little bomblets.":
+            "Platzt am Scheitel der Flugbahn in fünf Streulinge.",
+        "Shakes the whole world. Every castle takes the same - yours too.":
+            "Erschüttert die ganze Welt. Jede Burg nimmt gleich viel - auch die eigene.",
+        "Flies dead straight: no gravity, no wind, no excuses.":
+            "Fliegt schnurgerade: keine Schwerkraft, kein Wind, keine Ausreden.",
+        "A huge crater. Expensive, slow, and worth every taler.":
+            "Ein gewaltiger Krater. Teuer, träge und jeden Taler wert.",
+        # -- arsenal readout --------------------------------------------
+        "Arsenal": "Arsenal",
+        "reach": "Reichweite",
+        "gravity": "Schwerkraft",
+        "everyone": "alle",
+        "W to close": "W zum Schließen",
+        "show the arsenal": "Arsenal zeigen",
+        "H for help, W for the arsenal": "H für Hilfe, W für das Arsenal",
         # -- match events -----------------------------------------------
         "Direct hit!": "Volltreffer!",
         "The ground gives way!": "Der Boden gibt nach!",
         "Ouch - that was your own castle!": "Autsch - das war die eigene Burg!",
         "The cluster barrel bursts open!": "Das Streufass platzt auf!",
+        "The mole goes off underground!": "Der Maulwurf geht unter Tage hoch!",
+        "The earth shakes - nobody is spared!":
+            "Die Erde bebt - niemand bleibt verschont!",
         "The shot was lost in the clouds.": "Der Schuss verlor sich in den Wolken.",
         "The shot vanished into the abyss.": "Der Schuss verschwand im Abgrund.",
         "A castle falls to rubble!": "Eine Burg sinkt in Schutt und Asche!",

@@ -111,12 +111,12 @@ def test_gravity_scale_decides_how_fast_a_shot_drops():
     from bummsschloss.world.projectile import Projectile
 
     mortar = by_key("mortar")
-    balloon = by_key("balloon_bomb")
+    cannonball = by_key("cannonball")
 
     falls = []
-    for weapon in (mortar, balloon):
+    for weapon in (mortar, cannonball):
         shot = Projectile(x=0.0, y=0.0, vx=0.0, vy=0.0, weapon=weapon, owner=0)
-        for _ in range(120):
+        for _index in range(120):
             shot.step(config.FIXED_DT, wind=0.0)
         falls.append(shot.y)
 
