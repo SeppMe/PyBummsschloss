@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from bummsschloss import __version__, config
 from bummsschloss.i18n import AVAILABLE_LANGUAGES, detect_language, set_language
@@ -44,6 +45,14 @@ def build_parser(default_language: str) -> argparse.ArgumentParser:
         choices=list(AVAILABLE_LANGUAGES),
         help=_("language of the user interface (default: %(default)s)"),
     )
+    parser.add_argument(
+        "--diagnose",
+        action="store_true",
+        help=_("check whether this machine can run the game, and report what cannot"),
+    )
+    # Used by --diagnose to re-invoke itself for a single probe in a child
+    # process, so that a crash can be attributed instead of just killing us.
+    parser.add_argument("--probe", default=None, help=argparse.SUPPRESS)
     return parser
 
 
@@ -63,6 +72,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser(language).parse_args(argv)
     set_language(args.lang)
     config.MQTT_BROKER = args.broker
+
+    # The frozen build ships a second, console-attached executable whose only
+    # job is the machine check; it is the same program under another name.
+    named_diagnose = Path(sys.argv[0]).stem.lower().endswith("diagnose")
+
+    if args.diagnose or named_diagnose:
+        # Imported late, like everything else that may touch SDL.
+        from bummsschloss import diagnostics
+
+        if args.probe:
+            return diagnostics.run_probe(args.probe)
+        return diagnostics.run_report()
 
     # Imported late so that --help/--version do not pay for initialising SDL.
     from bummsschloss.app import App

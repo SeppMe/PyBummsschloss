@@ -21,6 +21,7 @@ src/bummsschloss/         # the game package (src-layout)
     weapons.py            # the arsenal
     stats.py              # per-player statistics and the awards
     resources.py          # asset lookup / loading
+    diagnostics.py        # the machine check behind --diagnose
     world/                # terrain, castles, projectiles (no pygame)
     net/                  # lockstep network play over a message broker
     scenes/               # one module per screen/state of the game
@@ -183,6 +184,102 @@ Two caveats worth knowing: a public broker is public, so anybody who guesses
 your room code can watch (and join) the game, and a player who disappears
 mid-match simply stalls their own turn - there is no AI to take over.
 
+## If it will not start on somebody else's machine
+
+"It does not work" is all the report you usually get, because the failures
+that matter here kill the process outright and so never print a traceback.
+Ask for this instead:
+
+```
+bummsschloss --diagnose                     # installed from the wheel
+Bummsschloss2026-Diagnose.exe               # the standalone build
+```
+
+It prints the machine - CPU model, which instruction-set extensions that CPU
+actually has, Python and pygame-ce versions - and then walks through the
+things that can go wrong, each **in its own child process**: the rules engine
+on its own (no pygame at all), importing pygame, starting SDL, opening a
+window, the blitters, the fillers, the transforms, image decoding, text
+rendering, audio, and finally one real frame of the real menu. A probe that
+takes its process down with it therefore cannot take the report down with it;
+the parent decodes the exit status - `SIGILL` on Linux, `0xC000001D` on
+Windows, both meaning "this CPU does not know that instruction" - and names
+the step. The first failure in the list is the one to chase. If `import
+pygame` is what dies, the report adds the trail of modules that did load, so
+even a crash with no traceback points at an extension module.
+
+The parent process never imports pygame itself, for the obvious reason: on
+the machine being diagnosed, that import may be precisely what crashes.
+
+A copy of the report is always written to `bummsschloss-diagnose.txt` in the
+user's home directory, which matters for the standalone build, where the game
+itself has no console to print to.
+
+### A note on old CPUs
+
+The wheel is `py3-none-any`: it contains no machine code at all, so it cannot
+itself use an instruction a processor does not have. Every byte of machine
+code comes from pygame-ce, the SDL libraries and CPython, and all three pick
+their AVX2 paths at *runtime* after asking the CPU (`SDL_HasAVX2()` in SDL and
+in pygame-ce's blitters, a CPUID probe in CPython's hashing and zlib code).
+Those AVX2 instructions are therefore present in the binaries but unreachable
+on a processor that cannot run them, which makes a missing AVX2 an unlikely
+explanation for a crash.
+
+**32-bit x86 is the exception worth knowing about.** On x86-64, SSE2 is part
+of the ABI, so every 64-bit chip has it and compilers may emit it freely. On
+32-bit x86 it is optional: anything older than a Pentium 4 or Pentium M does
+not have SSE2 at all. pygame-ce does publish `manylinux2014_i686` wheels, so
+`pip` will happily install a prebuilt binary on a 32-bit Debian - and that
+binary was built and tested on hardware far newer than the machine it may end
+up on. This is why the machine check reports `SSE`, `SSE2`, `MMX` and `CMOV`
+alongside the newer extensions, and says so plainly when it finds a 32-bit
+CPU without SSE2.
+
+None of this is fixable by packaging the game differently, which is exactly
+why the check reports the CPU's own feature flags *and* isolates the failing
+component instead of guessing.
+
+**This has been confirmed by disassembly.** In the published
+`pygame_ce-2.5.8-cp313-...-manylinux2014_i686` wheel, x87 is the default
+floating-point path, so the library was *not* built wholesale for SSE2 - but
+the compiler still emitted SSE2 opportunistically in ordinary, non-SIMD code.
+For example `pg_TwoDoublesFromObj` in `pygame/base.so`, the helper that turns
+Python numbers into C doubles for every `pygame.draw` call, `Rect` and
+`Vector2`, copies a `double` with `movsd xmm0, [ebp+8]`. That module contains
+no `cpuid` instruction anywhere, so the choice is not guarded: on a CPU
+without SSE2 it is an illegal instruction the moment the first frame is drawn.
+SDL2 itself is well behaved by comparison - it does use CPUID and dispatches
+properly - so the problem is pygame-ce's own extension modules, not SDL.
+
+The remedy, if a machine turns out to lack SSE2, is to avoid the prebuilt
+wheel and let the distribution's own compiler (whose i686 baseline does not
+assume SSE2) generate the code:
+
+```bash
+sudo apt install build-essential python3-dev pkg-config \
+  libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+  libfreetype6-dev libportmidi-dev
+CFLAGS="-march=pentium3 -mtune=generic -mfpmath=387" \
+  pip install --no-binary pygame-ce --force-reinstall pygame-ce
+```
+
+`-march=pentium3` allows SSE but not SSE2, and `-mfpmath=387` keeps ordinary
+floating-point arithmetic on the x87 stack. (Use `-march=pentium2` for a CPU
+with no SSE at all.) The flags are belt and braces rather than strictly
+necessary - the distribution compiler's own i686 default already avoids SSE2 -
+but they make the requirement explicit and fail loudly if it is ever violated.
+
+Setting them is safe: pygame-ce guards its hand-written SSE2 blitters with
+`#if defined(__SSE2__)` and passes no `-msse2` of its own on x86, so without
+that flag those files simply compile to nothing and the portable C versions
+are used instead. The result is a slower but correct build.
+
+On Linux a source build links the system SDL instead of vendoring its own, so
+this replaces both halves of the problem at once. Re-run `--diagnose`
+afterwards: the `math` and `draw` probes are the ones that fail first on a
+CPU without SSE2.
+
 ## Development setup
 
 ```powershell
@@ -208,6 +305,7 @@ python -m bummsschloss
 | Run in English | `python -m bummsschloss --lang en` |
 | Run tests | `python -m pytest` |
 | Lint | `python -m ruff check .` |
+| Check a machine that will not run it | `bummsschloss --diagnose` |
 
 ## Translations
 
@@ -236,5 +334,7 @@ python -m pip install -e ".[build]"
 python -m PyInstaller packaging/bummsschloss.spec
 ```
 
-Produces `dist/Bummsschloss2026/Bummsschloss2026.exe` (one folder, starts fastest).
+Produces `dist/Bummsschloss2026/Bummsschloss2026.exe` (one folder, starts fastest),
+and next to it `Bummsschloss2026-Diagnose.exe`, the same program attached to a
+console and running the machine check described above.
 The same spec works on Linux/macOS.
