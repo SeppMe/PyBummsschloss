@@ -59,18 +59,24 @@ def test_the_catalogue_has_no_orphans():
     a label gets reworded, and the entry quietly stays behind. This keeps the
     catalogue honest.
     """
+    import ast
     import pathlib
-    import re
 
     import bummsschloss
 
     source_root = pathlib.Path(bummsschloss.__file__).parent
     files = [p for p in source_root.rglob("*.py") if p.name != "i18n.py"]
-    text = "\n".join(p.read_text(encoding="utf-8") for p in files)
-    # A key counts as used only as a whole literal, never as part of a longer
-    # one - otherwise "wheel" would look alive inside "up/down, wheel".
-    literals = set(re.findall(r'"((?:[^"\\]|\\.)*)"', text))
-    literals |= set(re.findall(r"'((?:[^'\\]|\\.)*)'", text))
+    # Parsing beats a regex here: quote characters inside prose (an apostrophe
+    # in a docstring, say) would otherwise shift the pairing for every file
+    # that follows and hide perfectly live strings. A key counts as used only
+    # as a whole literal, never as part of a longer one - otherwise "wheel"
+    # would look alive inside "up/down, wheel".
+    literals: set[str] = set()
+    for path in files:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                literals.add(node.value)
 
     orphans = [key for key in i18n.CATALOGUES["de"] if key not in literals]
     assert not orphans, f"catalogue entries nothing uses any more: {sorted(orphans)}"

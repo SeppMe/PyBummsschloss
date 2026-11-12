@@ -50,8 +50,25 @@ exe = EXE(
     console=False,
 )
 
+# The same program again, but attached to a console and named so that it runs
+# the machine check instead of the game (see __main__.main). A windowed build
+# can only die silently, which is useless when a player reports "it does not
+# work" from a machine nobody here can test on.
+diagnose = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name="Bummsschloss2026-Diagnose",
+    debug=False,
+    strip=False,
+    upx=False,
+    console=True,
+)
+
 coll = COLLECT(
     exe,
+    diagnose,
     a.binaries,
     a.datas,
     strip=False,

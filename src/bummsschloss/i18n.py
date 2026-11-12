@@ -235,6 +235,8 @@ CATALOGUES: dict[str, dict[str, str]] = {
             "Sprache der Benutzeroberfläche (Standard: %(default)s)",
         "message broker for network games (default: %(default)s)":
             "Vermittler für Netzwerkspiele (Standard: %(default)s)",
+        "check whether this machine can run the game, and report what cannot":
+            "prüfen, ob dieser Rechner das Spiel ausführen kann, und melden, was nicht geht",
     },
 }
 
